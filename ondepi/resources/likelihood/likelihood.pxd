@@ -15,11 +15,10 @@ cdef struct EvalLoglikelihood:
     vector[double] gradient
 
 cdef EvalLoglikelihood eval_loglikelihood(
-         double alpha_D_0, double alpha_D_1,
-         double alpha_D_2, 
-         double beta_D, double nu_A,
-         double alpha_A_0, double alpha_A_1,
-         double alpha_A_2, double beta_A,
+         double alpha_D_0, double alpha_D_1, double alpha_D_2, 
+         double beta_D, double nu_D,
+         double alpha_A_0, double alpha_A_1, double alpha_A_2, 
+         double beta_A, double nu_A,
          vector[double] times,
          vector[long] queue
 )

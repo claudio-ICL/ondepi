@@ -15,9 +15,9 @@ cdef struct Sample:
     vector[EventState] observations
 
 cdef struct HawkesParam:
-    double nu
     double alpha_0
     double alpha_1
     double alpha_2
     double beta
+    double nu
 

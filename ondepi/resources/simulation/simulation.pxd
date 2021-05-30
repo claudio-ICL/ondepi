@@ -32,9 +32,12 @@ cdef extern from "<random>" namespace "std":
         T operator()(default_random_engine gen)
         void reset()
 
-cdef Sample simulate(double max_time, long unsigned int max_events, 
-        double alpha_D_0,
-        double alpha_D_1, double alpha_D_2,  double beta_D, 
-        double alpha_A_0,
-        double alpha_A_1, double alpha_A_2, double beta_A,
-        double nu_A)
+cdef Sample simulate(
+    double max_time, long unsigned int max_events, 
+    double alpha_D_0, double alpha_D_1, double alpha_D_2,
+    double beta_D, double nu_D,
+    double alpha_A_0, double alpha_A_1, double alpha_A_2,
+    double beta_A, double nu_A,
+    EventType first_event,
+    long first_state
+)
