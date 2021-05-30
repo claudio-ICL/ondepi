@@ -1,0 +1,150 @@
+cdef double update_0(double z_hat_t_0, double z_hat_t_1, IntensityVal ival, int dD_t, double dt):
+    cdef double mu_ = ival.at(EventType.D)
+    cdef double lambda_ = ival.at(EventType.A)
+    cdef predictable = (
+            - z_hat_t_0 * lambda_ * dt +
+            z_hat_t_0 * (1.0 -  z_hat_t_0) * mu_ * dt
+            )
+    cdef innovation = 0.0
+    if z_hat_t_0 == 1.0:
+        return z_hat_t_0 + predictable
+    else:
+        innovation = (
+           - z_hat_t_0 * dD_t + 
+           z_hat_t_1 * dD_t / (1.0 - z_hat_t_0)
+           )
+        return z_hat_t_0 + predictable + innovation
+
+
+cdef double update_local(
+        Z_hat_t_local z_hat_t, 
+        double z_hat_t_0,
+        IntensityVal ival,
+        int dD_t,
+        double dt
+        ):
+    cdef double mu_ = ival.at(EventType.D)
+    cdef double lambda_ = ival.at(EventType.A)
+    cdef predictable = (
+            z_hat_t[Neighbours._below] * lambda_ * dt -
+            z_hat_t[Neighbours._same] * lambda_ * dt - 
+            z_hat_t[Neighbours._same] * z_hat_t_0 * mu_ * dt
+            )
+    cdef innovation = 0.0
+    if z_hat_t_0 == 1.0:
+        return z_hat_t[Neighbours._same] + predictable
+    else:
+        innovation = (
+            - z_hat_t[Neighbours._same] * dD_t + 
+            z_hat_t[Neighbours._above] * dD_t / (1.0 - z_hat_t_0)
+            )
+        return z_hat_t[Neighbours._same] + predictable + innovation
+
+
+cdef class Z_hat:
+    def __cinit__(self):
+        pass
+
+    cdef void set_sample(self, Sample* sample):
+        self.sample = sample
+
+    cdef void init_times(self, double dt):
+        self.times.clear()
+        self.dD_t.clear()
+        cdef:
+            double t = 0.0
+            double T = self.sample[0].observations.front().time
+            double dT = self.sample[0].observationsu.at(1).time - T
+            long unsigned int n = 1
+        for n in range(1, self.sample[0].observations.size()):
+            next_T = self.sample[0].observations.at(n).time
+            dT = min(dT, next_T - T)
+            T = next_T
+        dt = min(dt, dT)    
+        for n in range(self.sample[0].observations.size() - 1):
+            T = self.sample[0].observations.at(n).time
+            next_T = self.sample[0].observations.at(n+1).time
+            t = T
+            while t <=  next_T - 0.5 * dt:
+                self.times.push_back(t)
+                if t < T + 0.5 * dt:
+                    self.dD_t.push_back(1)
+                else:    
+                    self.dD_t.push_back(0)
+                t += dt
+
+    cdef void init_process(self):
+        self.process.clear()
+        self.process.reserve(self.times.size())
+
+    cdef void set_intensities(self, vector[IntensityVal] intensities):
+        # It is assumed that the n-th entry of the vector 'intesities'
+        # (i.e. self.intensities[n])
+        # corresponds to the value of the intensity at time self.times[n]
+        self.intensities = intensities
+    
+    cdef vector[IntensityVal] get_intensities(self):
+        return self.intensities
+
+    cdef Z_hat_t get_slice(self, long unsigned int idx):
+        return self.process.at(idx)
+
+    cdef Z_hat_t get_time_slice(self, double t):
+        cdef long unsigned int n = 0
+        cdef long unsigned int N = self.process.size()
+        if N > 2:
+            for n in range(N - 1):
+                if self.process.at(n+1).time > t:
+                    if self.process.at(n).time <= t:
+                        return self.get_slice(n)
+        cdef Z_hat_t res
+        return res
+
+    cdef void populate(self, long unsigned int num_states):
+        self.init_process()
+
+        # Initial value of Z_hat
+        cdef long unsigned int initial_state = <long unsigned int>self.sample[0].observations.front().state
+        num_states = max(num_states, 1 + initial_state)
+        cdef Z_hat_t z_hat_0
+        z_hat_0.time = self.sample[0].observations.front().time
+        z_hat_0.distribution = vector[double](num_states, 0.0)
+        cdef long unsigned int n
+        for n in range(num_states):
+            if n == initial_state:
+                z_hat_0.distribution[n] = 1.0
+        self.process.push_back(z_hat_0)        
+
+        # Initialise auxiliary variables 
+        cdef Z_hat_t new_z_hat_t
+        cdef Z_hat_t_local z_hat_t_local
+        cdef double z_hat_t_0
+        cdef vector[double] new_distribution = vector[double](num_states, 0.0)
+
+        # Run
+        for t in range(-1 + self.times.size()):
+            dt = self.times.at(t+1) - self.times.at(t)
+            new_distribution = vector[double](num_states, 0.0)
+            new_distribution[0] = update_0(
+                self.process.back().distribution[0],
+                self.process.back().distribution[1],
+                self.intensities.at(t),
+                self.dD_t.at(t),
+                dt)
+            z_hat_t_0 = self.process.back().distribution[0]
+            for n in range(1, num_states):
+                z_hat_t_local[Neighbours._below] = self.process.back().distribution.at(n - 1)
+                z_hat_t_local[Neighbours._same] = self.process.back().distribution.at(n)
+                if n >= num_states - 1:
+                    z_hat_t_local[Neighbours._above] = 0.0
+                else:    
+                    z_hat_t_local[Neighbours._above] = self.process.back().distribution.at(n + 1)
+                new_distribution[n] = update_local(
+                        z_hat_t_local,
+                        z_hat_t_0,
+                        self.intensities.at(t),
+                        self.dD_t.at(t + 1),
+                        dt)
+            new_z_hat_t.distribution = new_distribution        
+            new_z_hat_t.time = self.times.at(t + 1)
+            self.process.push_back(new_z_hat_t)
