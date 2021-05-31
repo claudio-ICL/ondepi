@@ -14,6 +14,7 @@ cdef class Intensity(Process):
     cdef vector[IntensityVal] process
     cdef void init_process(self)
     cdef void populate(self)
+    cdef vector[IntensityVal] get_process(self)
     cdef Alpha_D alpha_D
     cdef double beta_D
     cdef double nu_D

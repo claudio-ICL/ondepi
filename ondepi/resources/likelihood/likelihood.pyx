@@ -1,6 +1,3 @@
-from ondepi.resources.likelihood cimport likelihood
-
-
 cdef EvalLoglikelihood eval_loglikelihood(
          double alpha_D_0, double alpha_D_1, double alpha_D_2, 
          double beta_D, double nu_D,

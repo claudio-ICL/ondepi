@@ -70,25 +70,36 @@ cdef class Intensity(Process):
         cdef double lambda_A = self.values.at(EventType.A)
         return lambda_D + lambda_A
 
+    cdef vector[IntensityVal] get_process(self):
+        return self.process
+
     cdef void init_process(self):
         self.process.clear()
         self.process.reserve(self.times.size())
+        # The time of the first observation is assumed as origin
+        cdef EventState first_observation = self.sample[0].observations.front()
+        self.set_first(first_observation.event, first_observation.state)
+        self.process.push_back(self.values)
 
     cdef void populate(self):
         # Initialise auxiliary variables
-        cdef long unsigned int t = 0
-        cdef long unsigned int n = 0
-        cdef double time = self.times.front()
+        cdef double next_T
+        cdef long unsigned int num_time_points = self.times.size()
+        cdef long unsigned int num_observations = self.sample[0].observations.size()
+        cdef EventState next_observation
+        cdef long unsigned int t = 1
+        cdef long unsigned int n = 1 # The first observation is set in init_process
 
-        # Run
-        for n in range(self.sample[0].observations.size()):
-            while time < self.sample[0].observations.at(n).time:
+        for t in range(1, num_time_points):
+            if (self.dD_t.at(t) == 1) | (self.dA_t.at(t)==1):
+                self.arrival(self.sample[0].observations.at(n))
+                self.process.push_back(self.values)
+                n += 1
+            else:
                 self.process.push_back(
-                        self.eval_after_last_event(time))
-                t += 1
-                time = self.times.at(t)
-            self.arrival(self.sample[0].observations.at(n))
-            self.process.push_back(self.values)
+                        self.eval_after_last_event(self.times.at(t)))
+
+
 
 
 

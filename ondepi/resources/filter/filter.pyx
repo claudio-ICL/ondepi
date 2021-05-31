@@ -42,12 +42,15 @@ cdef double update_local(
 
 
 cdef class Z_hat(Process):
-    def __cinit__(self):
-        pass
+#    def __cinit__(self):
+#        pass
 
     cdef void init_process(self):
         self.process.clear()
         self.process.reserve(self.times.size())
+
+    cdef vector[Z_hat_t] get_process(self):
+        return self.process
 
     cdef void set_intensities(self, vector[IntensityVal] intensities):
         # It is assumed that the n-th entry of the vector 'intesities'
@@ -90,26 +93,28 @@ cdef class Z_hat(Process):
         cdef Z_hat_t new_z_hat_t
         cdef Z_hat_t_local z_hat_t_local
         cdef double z_hat_t_0
+        cdef Z_hat_t previous_filter
         cdef vector[double] new_distribution = vector[double](num_states, 0.0)
 
         # Run
         for t in range(-1 + self.times.size()):
             dt = self.times.at(t+1) - self.times.at(t)
+            previous_filter = self.process.back()
             new_distribution = vector[double](num_states, 0.0)
             new_distribution[0] = update_0(
-                self.process.back().distribution[0],
-                self.process.back().distribution[1],
+                previous_filter.distribution.at(0),
+                previous_filter.distribution.at(1),
                 self.intensities.at(t),
-                self.dD_t.at(t),
+                self.dD_t.at(t + 1),
                 dt)
-            z_hat_t_0 = self.process.back().distribution[0]
+            z_hat_t_0 = previous_filter.distribution.at(0)
             for n in range(1, num_states):
-                z_hat_t_local[Neighbours._below] = self.process.back().distribution.at(n - 1)
-                z_hat_t_local[Neighbours._same] = self.process.back().distribution.at(n)
+                z_hat_t_local[Neighbours._below] = previous_filter.distribution.at(n - 1)
+                z_hat_t_local[Neighbours._same] = previous_filter.distribution.at(n)
                 if n >= num_states - 1:
                     z_hat_t_local[Neighbours._above] = 0.0
                 else:    
-                    z_hat_t_local[Neighbours._above] = self.process.back().distribution.at(n + 1)
+                    z_hat_t_local[Neighbours._above] = previous_filter.distribution.at(n + 1)
                 new_distribution[n] = update_local(
                         z_hat_t_local,
                         z_hat_t_0,

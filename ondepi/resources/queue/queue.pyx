@@ -11,6 +11,24 @@ cdef class Queue:
     cpdef Sample get_sample(self) except *:
         return self.sample
 
+    cpdef vector[IntensityVal] get_intensity_process(self) except *:
+        return self.intensity.get_process()
+
+    cpdef vector[double] get_intensity_times(self) except *:
+        return self.intensity.get_times()
+
+    cpdef vector[Z_hat_t] get_filter_process(self) except *:
+        return self.z_hat.get_process()
+
+    cpdef vector[double] get_filter_times(self) except *:
+        return self.z_hat.get_times()
+
+    cpdef vector[int] get_filter_dD_t(self) except *:
+        return self.z_hat.get_dD_t()
+
+    cpdef vector[int] get_filter_dA_t(self) except *:
+        return self.z_hat.get_dA_t()
+
     cpdef void set_param(self,
         double alpha_D_0 ,double alpha_D_1, double alpha_D_2,
         double beta_D, double nu_D,
@@ -55,7 +73,27 @@ cdef class Queue:
                 first_event,
                 first_state
                 )
-        self.intensity.set_sample(&(self.sample))
+
+    cdef void _filter(self, double dt, long unsigned int num_states):
+        cdef Sample* this_sample = &(self.sample)
+        # Populate history of intensities
+        self.intensity.set_sample(this_sample)
+        self.intensity.init_times(dt)
+        self.intensity.init_process()
+        self.intensity.populate()
+
+        # Populate filter
+        self.z_hat = Z_hat()
+        self.z_hat.set_sample(this_sample)
+        self.z_hat.set_times(self.intensity.get_times())
+        self.z_hat.set_dD_t(self.intensity.get_dD_t())
+        self.z_hat.set_dA_t(self.intensity.get_dA_t())
+        self.z_hat.set_intensities(self.intensity.get_process())
+        self.z_hat.init_process()
+        self.z_hat.populate(num_states)
+
+    cpdef void filter(self, double dt, long unsigned int num_states) except *:
+        self._filter(dt, num_states)
 
     cpdef void calibrate(self, Sample sample) except *:
         pass
