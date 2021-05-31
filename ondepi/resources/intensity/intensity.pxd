@@ -4,11 +4,11 @@
 from libc.math cimport exp, log
 from libcpp.map cimport map as cmap
 from ondepi.resources.intensity.impact_functions cimport Alpha_D, Alpha_A
-from ondepi.resources.ingredients cimport EventType, EventState
+from ondepi.resources.ingredients cimport EventType, EventState, Process
 
 ctypedef cmap[EventType, double] IntensityVal    
 
-cdef class Intensity:
+cdef class Intensity(Process):
     cdef IntensityVal values
     cdef Alpha_D alpha_D
     cdef double beta_D

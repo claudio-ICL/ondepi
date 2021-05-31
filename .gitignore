@@ -2,6 +2,8 @@ computations/
 cpp/
 ondepi/build/
 ondepi/__pycache__/
+ondepi/resources/*.cpp
+ondepi/resources/*.c
 ondepi/resources/*/*.cpp
 ondepi/resources/*/*.c
 ondepi/tests/

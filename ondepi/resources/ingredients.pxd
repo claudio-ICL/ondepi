@@ -21,3 +21,9 @@ cdef struct HawkesParam:
     double beta
     double nu
 
+cdef class Process:
+    cdef Sample* sample
+    cdef vector[double] times
+    cdef vector[int] dD_t
+    cdef void set_sample(self, Sample* sample)
+    cdef void init_times(self, double dt)

@@ -1,7 +1,7 @@
 # distutils: language = c++
 # cython: language_level = 3
 
-cdef class Intensity:
+cdef class Intensity(Process):
     def __cinit__(
             self,
             double alpha_D_0, double alpha_D_1, double alpha_D_2,

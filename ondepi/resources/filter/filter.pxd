@@ -1,10 +1,9 @@
 # distutils: language = c++
 # cython: language_level = 3
 
-# from libc.math cimport abs, min, max 
 from libcpp.vector cimport vector
 from libcpp.map cimport map as cmap
-from ondepi.resources.ingredients cimport Sample, EventType
+from ondepi.resources.ingredients cimport Sample, EventType, Process
 from ondepi.resources.intensity.intensity cimport Intensity, IntensityVal
 
 cdef enum Neighbours:
@@ -28,14 +27,9 @@ cdef double update_local(
     double dt
 ) 
 
-cdef class Z_hat:
-    cdef Sample* sample
-    cdef void set_sample(self, Sample* sample)
-    cdef vector[double] times
-    cdef vector[int] dD_t
-    cdef void init_times(self, double dt)
-    cdef void init_process(self)
+cdef class Z_hat(Process):
     cdef vector[Z_hat_t] process
+    cdef void init_process(self)
     cdef vector[IntensityVal] intensities
     cdef void set_intensities(self, vector[IntensityVal] intensities)
     cdef vector[IntensityVal] get_intensities(self)
