@@ -70,3 +70,26 @@ cdef class Intensity(Process):
         cdef double lambda_A = self.values.at(EventType.A)
         return lambda_D + lambda_A
 
+    cdef void init_process(self):
+        self.process.clear()
+        self.process.reserve(self.times.size())
+
+    cdef void populate(self):
+        # Initialise auxiliary variables
+        cdef long unsigned int t = 0
+        cdef long unsigned int n = 0
+        cdef double time = self.times.front()
+
+        # Run
+        for n in range(self.sample[0].observations.size()):
+            while time < self.sample[0].observations.at(n).time:
+                self.process.push_back(
+                        self.eval_after_last_event(time))
+                t += 1
+                time = self.times.at(t)
+            self.arrival(self.sample[0].observations.at(n))
+            self.process.push_back(self.values)
+
+
+
+

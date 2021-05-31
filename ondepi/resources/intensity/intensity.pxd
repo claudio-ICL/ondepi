@@ -2,6 +2,7 @@
 # cython: language_level = 3
 
 from libc.math cimport exp, log
+from libcpp.vector cimport vector
 from libcpp.map cimport map as cmap
 from ondepi.resources.intensity.impact_functions cimport Alpha_D, Alpha_A
 from ondepi.resources.ingredients cimport EventType, EventState, Process
@@ -10,6 +11,9 @@ ctypedef cmap[EventType, double] IntensityVal
 
 cdef class Intensity(Process):
     cdef IntensityVal values
+    cdef vector[IntensityVal] process
+    cdef void init_process(self)
+    cdef void populate(self)
     cdef Alpha_D alpha_D
     cdef double beta_D
     cdef double nu_D

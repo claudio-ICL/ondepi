@@ -44,7 +44,7 @@ cdef Sample simulate(
 
     # Run    
     while ((sample.observations.size() < max_events) &
-           (intensity.get_time() < max_time)):
+           (time < max_time)):
         intensity_overall = intensity.sum_()
         uniform_distr.reset()
         U = uniform_distr(generator)
