@@ -12,6 +12,7 @@ from ondepi.resources.filter.filter cimport Z_hat, Z_hat_t
 ctypedef cmap[EventType, HawkesParam] QueueParam    
 
 cdef class Queue:
+    cdef long price
     cdef QueueParam param
     cdef Sample sample
     cpdef void set_sample(self, Sample sample) except *  
@@ -24,6 +25,7 @@ cdef class Queue:
     cpdef vector[double] get_filter_times(self) except *
     cpdef vector[int] get_filter_dD_t(self) except *
     cpdef vector[int] get_filter_dA_t(self) except *
+    cpdef void set_price(self, long price) except *
     cpdef void set_param(self,
         double alpha_D_0 ,double alpha_D_1, double alpha_D_2,
         double beta_D, double nu_D,

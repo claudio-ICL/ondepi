@@ -1,3 +1,5 @@
+from numpy import array as nparray
+
 cdef EvalLoglikelihood eval_loglikelihood(
          double alpha_D_0, double alpha_D_1, double alpha_D_2, 
          double beta_D, double nu_D,
@@ -6,10 +8,12 @@ cdef EvalLoglikelihood eval_loglikelihood(
          vector[double] times,
          vector[long] queue
          ):
+    # Instantiate impact functions
     cdef:
         Alpha_D alpha_D = Alpha_D(alpha_D_0, alpha_D_1, alpha_D_2)
         Alpha_A alpha_A = Alpha_A(alpha_A_0, alpha_A_1, alpha_A_2)
 
+    # Define auxiliary variables
     cdef long unsigned int J = times.size()
 
     cdef vector[double] lambda_D
@@ -36,7 +40,8 @@ cdef EvalLoglikelihood eval_loglikelihood(
     cdef vector[double] v_A_alpha_2
     v_A_alpha_2.reserve(J)
 
-    v_D.push_back(alpha_D.eval(queue.front()))
+    # Set first entries
+    v_D.push_back(alpha_D.eval__(queue.front()))
     v_D_beta.push_back(0.0)
     v_D_alpha_0.push_back(alpha_D.partial_0_(queue.front()))
     v_D_alpha_1.push_back(alpha_D.partial_1_(queue.front()))
@@ -44,7 +49,7 @@ cdef EvalLoglikelihood eval_loglikelihood(
 
     lambda_D.push_back(v_D.front() + nu_D)
   
-    v_A.push_back(alpha_A.eval(queue.front()))
+    v_A.push_back(alpha_A.eval__(queue.front()))
     v_A_beta.push_back(0.0)
     v_A_alpha_0.push_back(alpha_A.partial_0_(queue.front()))
     v_A_alpha_1.push_back(alpha_A.partial_1_(queue.front()))
@@ -55,10 +60,11 @@ cdef EvalLoglikelihood eval_loglikelihood(
         double l_D_minus = 0.0
         double l_A_minus = 0.0
       
-        double l_plus_alpha_0 = v_D_alpha_0.front() / v_D.front()
-        double l_plus_alpha_1 = v_D_alpha_1.front() / v_D.front()
-        double l_plus_alpha_2 = v_D_alpha_2.front() / v_D.front()
-        double l_plus_beta = v_D_beta.front() / v_D.front()
+        double l_plus_alpha_0 = v_D_alpha_0.front() / lambda_D.front()
+        double l_plus_alpha_1 = v_D_alpha_1.front() / lambda_D.front()
+        double l_plus_alpha_2 = v_D_alpha_2.front() / lambda_D.front()
+        double l_plus_beta = v_D_beta.front() / lambda_D.front()
+        double l_plus_nu = 1.0 / lambda_D.front()
       
         double l_D_minus_alpha_0 = 0.0
         double l_D_minus_alpha_1 = 0.0
@@ -88,8 +94,8 @@ cdef EvalLoglikelihood eval_loglikelihood(
         next_T = times[j + 1]
         Q = queue[j]
         next_Q = queue[j + 1]
-        next_alpha_D = alpha_D.eval(next_Q)
-        next_alpha_A = alpha_A.eval(next_Q)
+        next_alpha_D = alpha_D.eval__(next_Q)
+        next_alpha_A = alpha_A.eval__(next_Q)
         v_D.push_back(next_v(v_D[j], T, next_T, next_alpha_D, beta_D))
         v_D_beta.push_back(next_v_beta(v_D_beta[j], v_D[j], T, next_T, beta_D))
         v_D_alpha_0.push_back(next_v_alpha(
@@ -182,3 +188,30 @@ cdef EvalLoglikelihood eval_loglikelihood(
     res.gradient[8] = -l_A_minus_beta
     res.gradient[9] = -l_A_minus_nu
     return res
+
+
+def calibration_target(
+        np.ndarray[double, ndim = 1] params,
+        np.ndarray[double, ndim = 1] times,
+        np.ndarray[long, ndim = 1] queue,
+        ):
+    cdef double alpha_D_2 = max(params[2], 0.0)
+    cdef double beta_D = max(params[3], 0.000001)
+    cdef double nu_D = max(params[4], 0.00000001)
+    cdef double alpha_A_2 = max(params[7], 0.0)
+    cdef double beta_A = max(params[8], 0.000001)
+    cdef double nu_A = max(params[9], 0.0)
+    cdef vector[double] time_vector = times 
+    cdef vector[long] queue_vector = queue 
+    cdef EvalLoglikelihood res = eval_loglikelihood(
+            params[0], params[1], alpha_D_2,
+            beta_D, nu_D,
+            params[5], params[6], alpha_A_2,
+            beta_A, nu_A,
+            time_vector,
+            queue_vector
+            )
+    cdef double f =  - res.logL
+    cdef np.ndarray[double, ndim=1] grad = nparray(res.gradient, dtype=float)
+    cdef np.ndarray[double, ndim=1] g = - grad
+    return f, g

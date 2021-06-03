@@ -5,6 +5,9 @@ cdef class Queue:
     def __cinit__(self):
         pass
 
+    cpdef void set_price(self, long price) except *:
+        self.price = price
+
     cpdef void set_sample(self, Sample sample) except *:
         self.sample = sample
 

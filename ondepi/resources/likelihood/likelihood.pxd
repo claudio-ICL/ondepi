@@ -3,8 +3,12 @@
 
 from libc.math cimport exp, log
 from libcpp.vector cimport vector
+cimport numpy as np
 
-from ondepi.resources.ingredients cimport EvalLoglikelihood
+from ondepi.resources.ingredients cimport (
+    EvalLoglikelihood,
+)    
+
 from ondepi.resources.intensity.impact_functions cimport (
         Alpha_D, Alpha_A,
         next_v,
@@ -20,3 +24,4 @@ cdef EvalLoglikelihood eval_loglikelihood(
          vector[double] times,
          vector[long] queue
 )
+
