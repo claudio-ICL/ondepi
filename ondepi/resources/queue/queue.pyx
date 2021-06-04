@@ -1,3 +1,6 @@
+from scipy.optimize import minimize
+from ondepi.resources.likelihood.likelihood  import calibration_target
+
 cdef class Queue:
     def __init__(self):
         pass
@@ -98,5 +101,10 @@ cdef class Queue:
     cpdef void filter(self, double dt, long unsigned int num_states) except *:
         self._filter(dt, num_states)
 
-    cpdef void calibrate(self, Sample sample) except *:
+    cpdef void calibrate(self, 
+            Sample sample, 
+            int maxiter = 100000, 
+            float xtol = 1e-5, 
+            int disp=0
+            ) except *:
         pass

@@ -1,4 +1,5 @@
 from numpy import array as nparray
+from scipy.optimize import minimize
 
 cdef EvalLoglikelihood eval_loglikelihood(
          double alpha_D_0, double alpha_D_1, double alpha_D_2, 
@@ -190,10 +191,11 @@ cdef EvalLoglikelihood eval_loglikelihood(
     return res
 
 
+
 def calibration_target(
         np.ndarray[double, ndim = 1] params,
         np.ndarray[double, ndim = 1] times,
-        np.ndarray[long, ndim = 1] queue,
+        np.ndarray[long, ndim = 1] states,
         ):
     cdef double alpha_D_2 = max(params[2], 0.0)
     cdef double beta_D = max(params[3], 0.000001)
@@ -202,16 +204,55 @@ def calibration_target(
     cdef double beta_A = max(params[8], 0.000001)
     cdef double nu_A = max(params[9], 0.0)
     cdef vector[double] time_vector = times 
-    cdef vector[long] queue_vector = queue 
+    cdef vector[long] state_vector = states 
     cdef EvalLoglikelihood res = eval_loglikelihood(
             params[0], params[1], alpha_D_2,
             beta_D, nu_D,
             params[5], params[6], alpha_A_2,
             beta_A, nu_A,
             time_vector,
-            queue_vector
+            state_vector
             )
     cdef double f =  - res.logL
     cdef np.ndarray[double, ndim=1] grad = nparray(res.gradient, dtype=float)
     cdef np.ndarray[double, ndim=1] g = - grad
     return f, g
+
+
+def minimize_calibration_target(
+        np.ndarray[double, ndim=1] times,
+        np.ndarray[long, ndim=1] states,
+        int maxiter = 100000, 
+        int disp=0
+        ):        
+    cdef np.ndarray[double, ndim=1] x0 = nparray([
+            1.0, 0.5, 1.0,
+            10.0, 10.0,
+            10.0, -2.0, 1.0,
+            10.0, 10.0,
+            ], dtype=float)
+    cdef list bounds = [
+            (None, None),
+            (None, None),
+            (0.0, None),
+            (0.000001, None),
+            (0.000001, None),
+            (None, None),
+            (None, None),
+            (0.0, None),
+            (0.000001, None),
+            (0.000001, None),
+            ]
+            
+    res = minimize(
+            calibration_target,
+            x0,
+            args = (times, states),
+            method = 'L-BFGS-B',
+            bounds = bounds, 
+            jac = True,
+            options = {
+                'maxiter': maxiter,
+                'disp': disp}
+            )
+    return res

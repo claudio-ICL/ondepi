@@ -25,6 +25,9 @@ cdef struct EvalLoglikelihood:
     double logL
     vector[double] gradient
 
+cdef vector[double] times_D_in_sample(Sample sample)    
+cdef vector[long] states_D_in_sample(Sample sample)    
+
 cdef class Process:
     cdef Sample* sample
     cdef vector[double] times

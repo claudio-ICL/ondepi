@@ -1,12 +1,17 @@
 # distutils: language = c++
 # cython: language_level = 3
 
+cimport numpy as np
+
 from libcpp.vector cimport vector
 from libcpp.map cimport map as cmap
-from ondepi.resources.ingredients cimport HawkesParam, Sample, EventType
+from ondepi.resources.ingredients cimport (
+        HawkesParam, Sample, EventType,
+        times_D_in_sample,
+        states_D_in_sample,
+)
 from ondepi.resources.intensity.intensity cimport Intensity, IntensityVal
 from ondepi.resources.simulation.simulation cimport simulate
-from ondepi.resources.likelihood.likelihood  cimport eval_loglikelihood
 from ondepi.resources.filter.filter cimport Z_hat, Z_hat_t
 
 ctypedef cmap[EventType, HawkesParam] QueueParam    
@@ -39,4 +44,8 @@ cdef class Queue:
     ) except *  
     cdef void _filter(self, double dt, long unsigned int num_states)
     cpdef void filter(self, double dt, long unsigned int num_states) except *
-    cpdef void calibrate(self, Sample sample) except *  
+    cpdef void calibrate(self, 
+            Sample sample, 
+            int maxiter=*, 
+            float xtol=*, 
+            int disp=*) except *

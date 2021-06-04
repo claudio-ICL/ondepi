@@ -1,3 +1,29 @@
+cdef vector[double] times_D_in_sample(Sample sample):
+    cdef long unsigned int num_observations = sample.observations.size()
+    cdef vector[double] times
+    times.reserve(num_observations)
+    cdef long unsigned int i=0
+    cdef EventState es
+    for i in range(num_observations):
+        es = sample.observations.at(i)
+        if es.event == EventType.D:
+            times.push_back(es.time)
+    return times        
+
+cdef vector[long] states_D_in_sample(Sample sample):
+    cdef long unsigned int num_observations = sample.observations.size()
+    cdef vector[long] states
+    states.reserve(num_observations)
+    cdef long unsigned int i=0
+    cdef EventState es
+    for i in range(num_observations):
+        es = sample.observations.at(i)
+        if es.event == EventType.D:
+            states.push_back(es.state)
+    return states        
+        
+        
+
 cdef class Process:
     def __cinit__(self):
         pass
