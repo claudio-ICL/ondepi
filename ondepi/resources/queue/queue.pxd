@@ -29,12 +29,13 @@ cdef class Queue:
     cpdef vector[int] get_filter_dD_t(self) except *
     cpdef vector[int] get_filter_dA_t(self) except *
     cpdef void set_price(self, long price) except *
-    cpdef void set_param(self,
+    cpdef void _set_param(self,
         double alpha_D_0 ,double alpha_D_1, double alpha_D_2,
         double beta_D, double nu_D,
         double alpha_A_0, double alpha_A_1, double alpha_A_2, 
         double beta_A, double nu_A
     ) except *  
+    cpdef QueueParam get_param(self)
     cpdef void simulate(self, 
             double max_time, long unsigned int max_events,
             EventType first_event,
@@ -44,6 +45,10 @@ cdef class Queue:
     cpdef void filter(self, double dt, long unsigned int num_states) except *
     cpdef void calibrate(self, 
             Sample sample, 
+            int num_guesses=*,
+            double ftol=*,
+            double gtol=*,
             int maxiter=*, 
-            float xtol=*, 
-            int disp=*) except *
+            int disp=*,
+            launch_async=*, 
+            ) except *

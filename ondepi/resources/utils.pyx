@@ -2,6 +2,27 @@ import os
 import multiprocessing as mp
 import numpy as np
 
+def sample_to_arrays(Sample sample):
+    cdef long unsigned int sample_size = sample.observations.size()
+    cdef vector[double] times
+    times.reserve(sample_size)
+    cdef vector[EventType] events
+    events.reserve(sample_size)
+    cdef vector[long] states
+    states.reserve(sample_size)
+    cdef EventState es
+    cdef long unsigned int n
+    for n in range(sample_size):
+        es = sample.observations.at(n)
+        times.push_back(es.time)
+        events.push_back(es.event)
+        states.push_back(es.state)
+    cdef np.ndarray[double, ndim=1] arr_times = np.array(times)    
+    cdef np.ndarray[long, ndim=1] arr_events = np.array(events)    
+    cdef np.ndarray[long, ndim=1] arr_states = np.array(states)    
+    return arr_times, arr_events, arr_states
+
+
 def launch_serial(fun, list_args):
     cdef list res = []
     for args in list_args:
@@ -44,6 +65,8 @@ def launch_async(fun, list_args):
 
 def select_best_optimization_result(list_of_results):
     results = [res for res in list_of_results if res.get('success')]
+    if results == []:
+        raise ValueError("No minimisation succeded")
     funs = np.array([res.get('fun') for res in results], dtype=np.float64)
     idx_min = np.argmin(funs)
     return results[idx_min]
@@ -78,19 +101,21 @@ def generate_init_guesses(
         ):
     cdef long unsigned int n = 0
     cdef np.ndarray[double, ndim=1] T_event = extract_times_of_event(times, events, event=event)
-    cdef double interarrival_avg = np.mean(np.diff(times))
-    cdef double interarrival_avg_event = np.mean(np.diff(T_event))
+    cdef double interarrival_avg = np.mean(np.diff(T_event))
     cdef list alpha_1s = np.random.uniform(-10.0, 10.0, size=num).tolist()
+    cdef list alpha_2s = np.random.uniform(0.0, 10.0, size=num).tolist()
+    cdef list betas = np.random.uniform(0.1, 2.0, size=num).tolist()
     cdef list init_guesses = []
     cdef np.ndarray[double, ndim=1] param = np.ones(5, dtype=np.float64)
     cdef np.ndarray[double, ndim=1] guess = np.ones(5, dtype=np.float64)
-    for alpha_1 in alpha_1s:
+    for alpha_1, alpha_2, beta in zip(alpha_1s, alpha_2s, betas):
         param[1] = alpha_1
-        param[4] = interarrival_avg
+        param[2] = alpha_2
+        param[3] = beta
+        param[4] = 1.0 / interarrival_avg
         guess = np.array(param, copy=True)
         init_guesses.append(guess)
-        param[4] = interarrival_avg_event
+        param[4] = 0.01 / interarrival_avg
         guess = np.array(param, copy=True)
         init_guesses.append(guess)
     return init_guesses   
-

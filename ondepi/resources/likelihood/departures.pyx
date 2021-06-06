@@ -1,4 +1,4 @@
-from numpy import array as nparray
+import numpy as np
 from scipy.optimize import minimize
 from ondepi.resources import utils
 
@@ -154,7 +154,7 @@ def calibration_target_D(
             T_end
             )
     cdef double f =  - res.logL
-    cdef np.ndarray[double, ndim=1] grad = nparray(res.gradient, dtype=float)
+    cdef np.ndarray[double, ndim=1] grad = np.array(res.gradient, dtype=float)
     cdef np.ndarray[double, ndim=1] g = - grad
     return f, g
 
@@ -164,7 +164,9 @@ def minimize_calibration_target_D(
         np.ndarray[long, ndim=1] states,
         double T_end,
         np.ndarray[double, ndim=1] init_guess, 
-        int maxiter = 100000, 
+        double ftol=1e-12,
+        double gtol=1e-6,
+        int maxiter=1000, 
         int disp=0
         ):        
     cdef list bounds = [
@@ -172,7 +174,7 @@ def minimize_calibration_target_D(
             (None, None),
             (0.0, None),
             (0.000001, None),
-            (0.000001, None),
+            (0.000001, 1.0 / np.mean(np.diff(times))),
             ]
     res = minimize(
             calibration_target_D,
@@ -182,6 +184,8 @@ def minimize_calibration_target_D(
             bounds = bounds, 
             jac = True,
             options = {
+                'ftol': ftol,
+                'gtol': gtol,
                 'maxiter': maxiter,
                 'disp': disp}
             )
@@ -193,6 +197,8 @@ def launch_minimization_D(
         np.ndarray[long, ndim=1] states,
         double T_end,
         int num_guesses=5,
+        double ftol=1e-12,
+        double gtol=1e-6,
         int maxiter=1000, 
         int disp=0,
         launch_async = False, 
@@ -200,12 +206,13 @@ def launch_minimization_D(
     cdef list init_guesses = utils.generate_init_guesses(
         times,
         events,
+        event=0,
         num=num_guesses,
         )
     cdef np.ndarray[double, ndim=1] T_D = utils.extract_times_of_event(times, events, event=0)
     cdef np.ndarray[long, ndim=1] Q_D = utils.extract_states_at_event(states, events, event=0)
     cdef list list_args = [
-            (T_D, Q_D, T_end, init_guess, maxiter, disp)
+            (T_D, Q_D, T_end, init_guess, ftol, gtol, maxiter, disp)
             for init_guess in init_guesses
             ]
     cdef list res
@@ -214,3 +221,4 @@ def launch_minimization_D(
     else:    
         res = utils.launch_serial(minimize_calibration_target_D, list_args)
     return res
+

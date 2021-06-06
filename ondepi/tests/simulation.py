@@ -3,7 +3,7 @@ from ondepi.resources.queue.queue import Queue
 
 def main():
     queue = Queue()
-    queue.set_param(
+    queue._set_param(
         alpha_D_0=1.0,
         alpha_D_1=1.0,
         alpha_D_2=1.0,
@@ -24,9 +24,9 @@ def main():
     print(queue.get_sample())
 
     queue.filter(
-            dt = 0.1,
-            num_states = 8
-            )
+        dt=0.1,
+        num_states=8
+    )
     print("Intensity process")
     print(queue.get_intensity_process())
     print("Intensity times")

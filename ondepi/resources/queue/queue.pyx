@@ -1,4 +1,5 @@
 from scipy.optimize import minimize
+from ondepi.resources.likelihood.calibration import estimate_param
 
 cdef class Queue:
     def __init__(self):
@@ -34,7 +35,7 @@ cdef class Queue:
     cpdef vector[int] get_filter_dA_t(self) except *:
         return self.z_hat.get_dA_t()
 
-    cpdef void set_param(self,
+    cpdef void _set_param(self,
         double alpha_D_0 ,double alpha_D_1, double alpha_D_2,
         double beta_D, double nu_D,
         double alpha_A_0, double alpha_A_1, double alpha_A_2, 
@@ -56,6 +57,20 @@ cdef class Queue:
         self.param[EventType.A].alpha_2 = alpha_A_2
         self.param[EventType.A].beta = beta_A
         self.param[EventType.A].nu = nu_A
+
+    def set_param(self, 
+            np.ndarray[double, ndim=1] d, # array of parameters for the departures 
+            np.ndarray[double, ndim=1] a, # array of parameters for the arrivals 
+            ):
+        self._set_param(
+                d[0], d[1], d[2],
+                d[3], d[4],
+                a[0], a[1], a[2],
+                a[3], a[4],
+                )
+
+    cpdef QueueParam get_param(self):
+        return self.param
 
     cpdef void simulate(self, 
             double max_time, long unsigned int max_events,
@@ -102,8 +117,28 @@ cdef class Queue:
 
     cpdef void calibrate(self, 
             Sample sample, 
-            int maxiter = 100000, 
-            float xtol = 1e-5, 
-            int disp=0
+            int num_guesses=5,
+            double ftol=1e-12,
+            double gtol=1e-6,
+            int maxiter=1000, 
+            int disp=0,
+            launch_async=False, 
             ) except *:
-        pass
+        cdef double T_end = sample.observations.back().time
+        cdef np.ndarray[double, ndim=1] param_D = estimate_param(
+                EventType.D, sample, T_end,
+                num_guesses=num_guesses,
+                ftol=ftol,
+                gtol=gtol,
+                maxiter=maxiter,
+                disp=disp,
+                launch_async=launch_async)
+        cdef np.ndarray[double, ndim=1] param_A = estimate_param(
+                EventType.A, sample, T_end,
+                num_guesses=num_guesses,
+                ftol=ftol,
+                gtol=gtol,
+                maxiter=maxiter,
+                disp=disp,
+                launch_async=launch_async)
+        self.set_param(param_D, param_A)

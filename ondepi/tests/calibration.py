@@ -1,65 +1,31 @@
-from ondepi.resources import utils
-from ondepi.resources.likelihood.departures import (
-    launch_minimization_D
-)
-from ondepi.resources.likelihood.arrivals import (
-    launch_minimization_A
-)
-import numpy as np
-
-
-def generate_random_times_events_states(size=1500):
-    times = np.cumsum(np.random.exponential(scale=1.0, size=1500))
-    T_end = times[-1] + np.random.exponential(scale=1.0)
-    events = np.random.randint(0, 2, size=1500, dtype=int)
-    states = np.random.randint(0, 8, size=1500)
-    return times, events, states, T_end
-
-
-def departures():
-    print("\n\n*****Departures*****\n")
-    print("Test minimization of calibration target D: ")
-    times, events, states, T_end = generate_random_times_events_states(
-        size=15000)
-    res = launch_minimization_D(
-        times,
-        events,
-        states,
-        T_end,
-        num_guesses=4,
-        maxiter=100,
-        disp=0)
-    print(res)
-    best = utils.select_best_optimization_result(res)
-    print("\nBest optimization result:")
-    print(best)
-    return res
-
-
-def arrivals():
-    print("\n\n*****Arrivals*****\n")
-    print("Test minimization of calibration target A: ")
-    times, events, states, T_end = generate_random_times_events_states(
-        size=15000)
-    res = launch_minimization_A(
-        times,
-        events,
-        states,
-        T_end,
-        num_guesses=4,
-        maxiter=100,
-        disp=0)
-    print(res)
-    best = utils.select_best_optimization_result(res)
-    print("\nBest optimization result:")
-    print(best)
-    return res
+from ondepi.resources.queue.queue import Queue
 
 
 def main():
-    res_D = departures()
-    res_A = arrivals()
-    return 0
+    queue = Queue()
+    queue._set_param(
+        alpha_D_0=1.0,
+        alpha_D_1=1.0,
+        alpha_D_2=1.0,
+        beta_D=0.5,
+        nu_D=3.0,
+        alpha_A_0=1.0,
+        alpha_A_1=1.0,
+        alpha_A_2=10.0,
+        beta_A=0.1,
+        nu_A=0.5
+    )
+    print("\nOriginal param:\n{}".format(queue.get_param()))
+    queue.simulate(1000.0, 5000, 1, 2)
+    queue_ = Queue()
+    queue_.calibrate(
+        queue.get_sample(),
+        num_guesses=12,
+        ftol=1e-14,
+        gtol=1e-8,
+        maxiter=2000,
+        disp=0)
+    print("\nEstimated param:\n{}".format(queue_.get_param()))
 
 
 if __name__ == '__main__':
