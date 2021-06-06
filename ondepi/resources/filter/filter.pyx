@@ -52,6 +52,14 @@ cdef class Z_hat(Process):
     cdef vector[Z_hat_t] get_process(self):
         return self.process
 
+    cdef vector[double] get_expected_process(self):
+        cdef vector[double] res
+        res.reserve(self.process.size())
+        cdef long unsigned int t
+        for t in range(self.process.size()):
+            res.push_back(self.process[t].expected_value)
+        return res    
+
     cdef void set_intensities(self, vector[IntensityVal] intensities):
         # It is assumed that the n-th entry of the vector 'intesities'
         # (i.e. self.intensities[n])
@@ -82,6 +90,7 @@ cdef class Z_hat(Process):
         num_states = max(num_states, 1 + initial_state)
         cdef Z_hat_t z_hat_0
         z_hat_0.time = self.sample[0].observations.front().time
+        z_hat_0.expected_value = <double>initial_state
         z_hat_0.distribution = vector[double](num_states, 0.0)
         cdef long unsigned int n
         for n in range(num_states):
@@ -95,12 +104,14 @@ cdef class Z_hat(Process):
         cdef double z_hat_t_0
         cdef Z_hat_t previous_filter
         cdef vector[double] new_distribution = vector[double](num_states, 0.0)
+        cdef double new_expected_value 
 
         # Run
         for t in range(-1 + self.times.size()):
             dt = self.times.at(t+1) - self.times.at(t)
             previous_filter = self.process.back()
             new_distribution = vector[double](num_states, 0.0)
+            new_expected_value = 0.0
             new_distribution[0] = update_0(
                 previous_filter.distribution.at(0),
                 previous_filter.distribution.at(1),
@@ -121,6 +132,8 @@ cdef class Z_hat(Process):
                         self.intensities.at(t),
                         self.dD_t.at(t + 1),
                         dt)
+                new_expected_value += n * new_distribution[n]
             new_z_hat_t.distribution = new_distribution        
+            new_z_hat_t.expected_value = new_expected_value
             new_z_hat_t.time = self.times.at(t + 1)
             self.process.push_back(new_z_hat_t)

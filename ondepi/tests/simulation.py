@@ -27,15 +27,17 @@ def main():
         dt=0.1,
         num_states=8
     )
-    print("Intensity process")
+    print("\nIntensity process")
     print(queue.get_intensity_process())
-    print("Intensity times")
+    print("\nIntensity times")
     print(queue.get_intensity_times())
-    print("Filter process")
+    print("\nExpected queue")
+    print(queue.get_expected_process())
+    print("\nFilter process")
     print(queue.get_filter_process())
-    print("Filter dD_t")
+    print("\nFilter dD_t")
     print(queue.get_filter_dD_t())
-    print("Filter dA_t")
+    print("\nFilter dA_t")
     print(queue.get_filter_dA_t())
 
 

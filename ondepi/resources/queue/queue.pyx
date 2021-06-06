@@ -26,6 +26,9 @@ cdef class Queue:
     cpdef vector[Z_hat_t] get_filter_process(self) except *:
         return self.z_hat.get_process()
 
+    cpdef vector[double] get_expected_process(self) except *:
+        return self.z_hat.get_expected_process()
+
     cpdef vector[double] get_filter_times(self) except *:
         return self.z_hat.get_times()
 

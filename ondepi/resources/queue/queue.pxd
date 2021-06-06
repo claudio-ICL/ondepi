@@ -25,6 +25,7 @@ cdef class Queue:
     cpdef vector[IntensityVal] get_intensity_process(self) except *
     cpdef vector[double] get_intensity_times(self) except *
     cpdef vector[Z_hat_t] get_filter_process(self) except *
+    cpdef vector[double] get_expected_process(self) except *
     cpdef vector[double] get_filter_times(self) except *
     cpdef vector[int] get_filter_dD_t(self) except *
     cpdef vector[int] get_filter_dA_t(self) except *
