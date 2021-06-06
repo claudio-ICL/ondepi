@@ -7,8 +7,6 @@ from libcpp.vector cimport vector
 from libcpp.map cimport map as cmap
 from ondepi.resources.ingredients cimport (
         HawkesParam, Sample, EventType,
-        times_D_in_sample,
-        states_D_in_sample,
 )
 from ondepi.resources.intensity.intensity cimport Intensity, IntensityVal
 from ondepi.resources.simulation.simulation cimport simulate

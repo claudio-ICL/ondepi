@@ -1,5 +1,6 @@
 from numpy import array as nparray
 from scipy.optimize import minimize
+from ondepi.resources import utils
 
 cdef EvalLoglikelihood eval_loglikelihood(
          double alpha_D_0, double alpha_D_1, double alpha_D_2, 
@@ -162,13 +163,10 @@ def minimize_calibration_target_D(
         np.ndarray[double, ndim=1] times,
         np.ndarray[long, ndim=1] states,
         double T_end,
+        np.ndarray[double, ndim=1] init_guess, 
         int maxiter = 100000, 
         int disp=0
         ):        
-    cdef np.ndarray[double, ndim=1] x0 = nparray([
-            1.0, 0.5, 1.0,
-            10.0, 10.0,
-            ], dtype=float)
     cdef list bounds = [
             (None, None),
             (None, None),
@@ -176,10 +174,9 @@ def minimize_calibration_target_D(
             (0.000001, None),
             (0.000001, None),
             ]
-            
     res = minimize(
             calibration_target_D,
-            x0,
+            init_guess,
             args = (times, states, T_end),
             method = 'L-BFGS-B',
             bounds = bounds, 
@@ -188,4 +185,32 @@ def minimize_calibration_target_D(
                 'maxiter': maxiter,
                 'disp': disp}
             )
+    return res
+
+def launch_minimization_D(
+        np.ndarray[double, ndim=1] times,
+        np.ndarray[long, ndim=1] events,
+        np.ndarray[long, ndim=1] states,
+        double T_end,
+        int num_guesses=5,
+        int maxiter=1000, 
+        int disp=0,
+        launch_async = False, 
+        ):
+    cdef list init_guesses = utils.generate_init_guesses(
+        times,
+        events,
+        num=num_guesses,
+        )
+    cdef np.ndarray[double, ndim=1] T_D = utils.extract_times_of_event(times, events, event=0)
+    cdef np.ndarray[long, ndim=1] Q_D = utils.extract_states_at_event(states, events, event=0)
+    cdef list list_args = [
+            (T_D, Q_D, T_end, init_guess, maxiter, disp)
+            for init_guess in init_guesses
+            ]
+    cdef list res
+    if launch_async:
+        res = utils.launch_async(minimize_calibration_target_D, list_args)
+    else:    
+        res = utils.launch_serial(minimize_calibration_target_D, list_args)
     return res

@@ -1,5 +1,4 @@
 from scipy.optimize import minimize
-from ondepi.resources.likelihood.likelihood  import calibration_target
 
 cdef class Queue:
     def __init__(self):
