@@ -1,6 +1,7 @@
 import os
 import multiprocessing as mp
 import numpy as np
+import pandas as pd
 
 def sample_to_arrays(Sample sample):
     cdef long unsigned int sample_size = sample.observations.size()
@@ -21,6 +22,23 @@ def sample_to_arrays(Sample sample):
     cdef np.ndarray[long, ndim=1] arr_events = np.array(events)    
     cdef np.ndarray[long, ndim=1] arr_states = np.array(states)    
     return arr_times, arr_events, arr_states
+
+cpdef Sample arrays_to_sample(
+        vector[double] times, 
+        vector[EventType] events, 
+        vector[long] states):
+    cdef Sample sample
+    cdef long unsigned int sample_size = times.size()
+    sample.observations.reserve(sample_size)
+    cdef EventState es
+    cdef long unsigned int n
+    for n in range(sample_size):
+        es.time = times.at(n)
+        es.state = states.at(n)
+        es.event = events.at(n)
+        sample.observations.push_back(es)
+    return sample
+
 
 
 def launch_serial(fun, list_args):
@@ -119,3 +137,25 @@ def generate_init_guesses(
         guess = np.array(param, copy=True)
         init_guesses.append(guess)
     return init_guesses   
+
+
+
+def produce_df_detection(queue):
+    df_filter = queue.get_expected_process().reset_index()
+    dt = df_filter['time'].diff().min()
+    precision = max(1, 10 ** (1 - np.ceil(np.log10(dt))))
+    print("precision: {}".format(precision))
+    df_filter.insert(0, 'idx', np.array(
+        np.floor(precision*df_filter['time'].values), dtype=np.int64))
+    df = queue.get_evolution().reset_index()
+    df.insert(0, 'idx', np.array(
+        np.floor(precision*df['time'].values), dtype=np.int64))
+    df = df.merge(df_filter, on='idx', how='outer',
+                  suffixes=(' sample', ' filter'), validate='1:1')
+    df.insert(5, 'error', df['state'].values - df['expected val'].values)
+    df.dropna(inplace=True)
+    df['state'] = df['state'].astype(np.int)
+    cols = ['idx', 'time sample', 'time filter',
+            'state', 'expected val', 'error']
+    df = df[cols]
+    return df

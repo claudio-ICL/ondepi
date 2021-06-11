@@ -1,3 +1,4 @@
+import pandas as pd
 from scipy.optimize import minimize
 from ondepi.resources.likelihood.calibration import estimate_param
 
@@ -17,6 +18,23 @@ cdef class Queue:
     cpdef Sample get_sample(self) except *:
         return self.sample
 
+    def get_evolution(self):
+        cdef long unsigned int size = self.sample.observations.size()
+        cdef vector[double] time
+        time.reserve(size)
+        cdef vector[long] val
+        val.reserve(size)
+        cdef long unsigned int t
+        for t in range(size):
+            time.push_back(self.sample.observations[t].time)
+            val.push_back(self.sample.observations[t].state)
+        df = pd.DataFrame({
+            'time': time,
+            'state': val})
+        ser = df.set_index('time')
+        return ser
+
+
     cpdef vector[IntensityVal] get_intensity_process(self) except *:
         return self.intensity.get_process()
 
@@ -26,7 +44,7 @@ cdef class Queue:
     cpdef vector[Z_hat_t] get_filter_process(self) except *:
         return self.z_hat.get_process()
 
-    cpdef vector[double] get_expected_process(self) except *:
+    def get_expected_process(self):
         return self.z_hat.get_expected_process()
 
     cpdef vector[double] get_filter_times(self) except *:

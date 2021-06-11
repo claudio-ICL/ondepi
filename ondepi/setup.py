@@ -2,7 +2,7 @@ import os
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
-from ondepi.settings import path_intensity, path_resources, home_path
+from ondepi.settings import intensity_path, resources_path, home_path
 import numpy
 
 
@@ -21,8 +21,9 @@ def makeExtension(extName):
     return Extension(
         extName,
         [extPath],
-        language = "c++",
-        include_dirs=['./', str(path_intensity), str(path_resources), str(home_path), numpy.get_include()],
+        language="c++",
+        include_dirs=['./', str(intensity_path), str(resources_path),
+                      str(home_path), numpy.get_include()],
     )
 
 

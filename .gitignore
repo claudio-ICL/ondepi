@@ -1,5 +1,6 @@
 computations/
 cpp/
+data/
 ondepi/build/
 ondepi/__pycache__/
 ondepi/resources/*.cpp

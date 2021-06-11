@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-home_path = Path(__file__).parent
-path_resources = home_path / "resources"
-path_intensity = path_resources / "intensity"
-
+home_path = Path(__file__).resolve().parent
+resources_path = home_path / "resources"
+intensity_path = resources_path / "intensity"
+data_path = home_path.parent / "data"

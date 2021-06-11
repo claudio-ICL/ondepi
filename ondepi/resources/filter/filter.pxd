@@ -32,7 +32,6 @@ cdef class Z_hat(Process):
     cdef vector[Z_hat_t] process
     cdef void init_process(self)
     cdef vector[Z_hat_t] get_process(self)
-    cdef vector[double] get_expected_process(self)
     cdef vector[IntensityVal] intensities
     cdef void set_intensities(self, vector[IntensityVal] intensities)
     cdef vector[IntensityVal] get_intensities(self)

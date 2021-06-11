@@ -1,3 +1,5 @@
+import pandas as pd
+
 cdef double update_0(double z_hat_t_0, double z_hat_t_1, IntensityVal ival, int dD_t, double dt):
     cdef double mu_ = ival.at(EventType.D)
     cdef double lambda_ = ival.at(EventType.A)
@@ -52,13 +54,21 @@ cdef class Z_hat(Process):
     cdef vector[Z_hat_t] get_process(self):
         return self.process
 
-    cdef vector[double] get_expected_process(self):
-        cdef vector[double] res
-        res.reserve(self.process.size())
+    def get_expected_process(self):
+        cdef long unsigned int size = self.process.size()
+        cdef vector[double] time
+        time.reserve(size)
+        cdef vector[double] val
+        val.reserve(size)
         cdef long unsigned int t
-        for t in range(self.process.size()):
-            res.push_back(self.process[t].expected_value)
-        return res    
+        for t in range(size):
+            time.push_back(self.process[t].time)
+            val.push_back(self.process[t].expected_value)
+        df = pd.DataFrame({
+            'time': time,
+            'expected val': val})
+        ser = df.set_index('time')
+        return ser
 
     cdef void set_intensities(self, vector[IntensityVal] intensities):
         # It is assumed that the n-th entry of the vector 'intesities'
