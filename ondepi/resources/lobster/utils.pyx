@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 from functools import lru_cache
 from ondepi.settings import data_path
-from ondepi.resources.utils import arrays_to_sample, sample_to_arrays
+from ondepi.resources.utils import (
+        timestamp_to_idx,
+        idx_to_timestamp,
+        arrays_to_sample, 
+        sample_to_arrays,
+)
 from logging import Logger
 
 logger = Logger(__name__)
@@ -34,20 +39,6 @@ def mf_header():
     ]
     return cols
 
-def convert_timestamp_to_idx(
-        np.ndarray[double, ndim=1] times):
-    cdef int n = 9
-    cdef np.ndarray[long, ndim=1] idx = np.array(
-            np.floor(times * (10**n)), dtype=long)
-    return idx
-
-def convert_idx_to_timestamp(
-        np.ndarray[long, ndim=1] idx):
-    cdef int n = 9
-    cdef np.ndarray[double, ndim=1] idx_f = np.array(idx, dtype=np.float64)
-    cdef np.ndarray[double, ndim=1] times = np.array(idx_f * 10.0**(-n), dtype=np.float64)
-    return times
-
 def merge_lob_and_mf(
         lob, mf, **kwargs):
     kwargs['left_index'] = kwargs.get('left_index', True)
@@ -68,7 +59,7 @@ def load_mf(str symbol='INTC', str date='2019-01-31'):
     df.columns = mf_header()
     astype_dict = {col: 'int' for col in df.columns if 'time' not in col.lower()}
     df = df.astype(astype_dict)
-    df.insert(0, 'time_i', convert_timestamp_to_idx(np.array(df['time'].values, dtype=np.float64)))
+    df.insert(0, 'time_i', timestamp_to_idx(np.array(df['time'].values, dtype=np.float64)))
     return df
     
 @lru_cache()

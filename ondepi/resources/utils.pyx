@@ -3,6 +3,21 @@ import multiprocessing as mp
 import numpy as np
 import pandas as pd
 
+
+def timestamp_to_idx(
+        np.ndarray[double, ndim=1] times):
+    cdef int n = 9
+    cdef np.ndarray[long, ndim=1] idx = np.array(
+            np.floor(times * (10**n)), dtype=long)
+    return idx
+
+def idx_to_timestamp(
+        np.ndarray[long, ndim=1] idx):
+    cdef int n = 9
+    cdef np.ndarray[double, ndim=1] idx_f = np.array(idx, dtype=np.float64)
+    cdef np.ndarray[double, ndim=1] times = np.array(idx_f * 10.0**(-n), dtype=np.float64)
+    return times
+
 def sample_to_arrays(Sample sample):
     cdef long unsigned int sample_size = sample.observations.size()
     cdef vector[double] times
@@ -38,6 +53,27 @@ cpdef Sample arrays_to_sample(
         es.event = events.at(n)
         sample.observations.push_back(es)
     return sample
+
+def arrays_to_df(
+    np.ndarray[double, ndim=1] times,
+    np.ndarray[long, ndim=1] events,
+    np.ndarray[long, ndim=1] states,
+    ):
+    cdef np.ndarray[long, ndim=1] N_D = np.array(np.cumsum(events == 0), dtype=np.int64)
+    cdef np.ndarray[long, ndim=1] N_A = np.array(np.cumsum(events == 1), dtype=np.int64)
+    cdef np.ndarray[long, ndim=1] time_i = timestamp_to_idx(times)
+    df = pd.DataFrame({
+        'time_i': time_i, 
+        'time': times,
+        'event': events,
+        'state': states,
+        'N_D': N_D,
+        'N_A': N_A,
+        })
+    return df
+
+def sample_to_df(Sample sample):
+    return arrays_to_df(*sample_to_arrays(sample))
 
 
 

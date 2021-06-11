@@ -40,7 +40,7 @@ def parse_df_sample(
     df_D = utils.define_events(df, EventType.D, std_size)
     df_A = utils.define_events(df, EventType.A, std_size)
     df_s = utils.join_events(df_D, df_A)
-    cdef np.ndarray[double, ndim=1] times = utils.convert_idx_to_timestamp(
+    cdef np.ndarray[double, ndim=1] times = utils.idx_to_timestamp(
             np.array(df_s['time_i'].values, dtype=np.int64))
     df_s.insert(0, 'time', times)
     df_s.insert(1, 'state', np.array(df_s['N_A'].values - df_s['N_D'].values, dtype=np.int64))
