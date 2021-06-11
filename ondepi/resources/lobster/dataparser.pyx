@@ -9,6 +9,9 @@ def parse_sample(
         long std_size = 100,
         str symbol='INTC',
         str date='2019-01-31',
+        double t0=0.0,
+        double t1=57600.0,
+        reset_time_origin=False,
         **kwargs
 ):
     df = parse_df_sample(
@@ -17,6 +20,9 @@ def parse_sample(
              std_size=std_size,
              symbol=symbol,
              date=date,
+             t0=t0,
+             t1=t1,
+             reset_time_origin=reset_time_origin,
              **kwargs
          )
     cdef vector[double] times = df['time'].tolist()
@@ -32,10 +38,14 @@ def parse_df_sample(
         long std_size = 100,
         str symbol='INTC',
         str date='2019-01-31',
+        double t0=0.0,
+        double t1=57600.0,
+        reset_time_origin=False,
         **kwargs
 ):
     df = parse_price_level(direction=direction, price_level=price_level, 
-            symbol=symbol, date=date, **kwargs)
+            symbol=symbol, date=date, t0=t0, t1=t1, reset_time_origin=reset_time_origin, **kwargs)
+    cdef long initial_state = df.iloc[0]['level_volume'] // std_size
     df.reset_index(inplace=True, drop=True)
     df_D = utils.define_events(df, EventType.D, std_size)
     df_A = utils.define_events(df, EventType.A, std_size)
@@ -43,7 +53,7 @@ def parse_df_sample(
     cdef np.ndarray[double, ndim=1] times = utils.idx_to_timestamp(
             np.array(df_s['time_i'].values, dtype=np.int64))
     df_s.insert(0, 'time', times)
-    df_s.insert(1, 'state', np.array(df_s['N_A'].values - df_s['N_D'].values, dtype=np.int64))
+    df_s.insert(1, 'state', np.array(initial_state + df_s['N_A'].values - df_s['N_D'].values, dtype=np.int64))
     df_s = df_s[['time_i', 'time', 'event', 'state', 'N_D', 'N_A']]
     return df_s
 
@@ -54,10 +64,13 @@ def parse_price_level(
         long price_level=468000,
         str symbol='INTC',
         str date='2019-01-31',
+        double t0=0.0,
+        double t1=57600.0,
+        reset_time_origin=False,
         **kwargs
 ):
     df = utils.load_queue(df=df, direction=direction, price_level=price_level, 
-            symbol=symbol, date=date, **kwargs)
+            symbol=symbol, date=date, t0=t0, t1=t1, reset_time_origin=reset_time_origin, **kwargs)
 
     # Keep only events of interest
     to_drop = df['event_label'].isin([5, 6, 7])

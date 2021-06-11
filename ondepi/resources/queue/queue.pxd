@@ -29,6 +29,7 @@ cdef class Queue:
     cpdef vector[int] get_filter_dD_t(self) except *
     cpdef vector[int] get_filter_dA_t(self) except *
     cpdef void set_price(self, long price) except *
+    cpdef long get_price(self) except *
     cpdef void _set_param(self,
         double alpha_D_0 ,double alpha_D_1, double alpha_D_2,
         double beta_D, double nu_D,

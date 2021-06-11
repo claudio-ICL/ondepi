@@ -125,18 +125,35 @@ def select_price_level(df, long price_level = 468000):
     df_.insert(df_.shape[1], 'level_volume', level_volume)
     return df_
 
+def select_time_window(
+        df, 
+        double t0=0.0,
+        double t1=57600.0,
+        reset_time_origin=False,
+):
+    idx = (t0 <= df['time']) & (df['time'] <= t1)
+    df = df.loc[idx, :].copy()
+    if reset_time_origin:
+        df['time'] -= t0
+        df['time_i'] -= <long>floor(t0 * 10**9)
+    return df
+
 def load_queue(
         df = None,
         long direction = 1,
         long price_level = 468000,
         str symbol='INTC',
         str date='2019-01-31',
+        double t0=0.0,
+        double t1=57600.0,
+        reset_time_origin=False,
         **kwargs
 ):
     if df is None:
         df = read_full_dataframe(symbol=symbol, date=date, **kwargs)
     idx = (df['direction']==direction) & (df['price']==price_level)
     df = select_price_level(df.loc[idx, :].copy(), price_level=price_level)
+    df = select_time_window(df, t0, t1, reset_time_origin)
     return df
 
 def is_time_increasing(df):

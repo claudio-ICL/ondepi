@@ -12,6 +12,9 @@ cdef class Queue:
     cpdef void set_price(self, long price) except *:
         self.price = price
 
+    cpdef long get_price(self) except *:
+        return self.price
+
     cpdef void set_sample(self, Sample sample) except *:
         self.sample = sample
 
