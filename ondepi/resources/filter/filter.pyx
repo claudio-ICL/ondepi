@@ -1,21 +1,24 @@
+import numpy as np
 import pandas as pd
 
 cdef double update_0(double z_hat_t_0, double z_hat_t_1, IntensityVal ival, int dD_t, double dt):
     cdef double mu_ = ival.at(EventType.D)
     cdef double lambda_ = ival.at(EventType.A)
+    z_hat_t_0 = min(1.0, max(0.0, z_hat_t_0))
     cdef predictable = (
             - z_hat_t_0 * lambda_ * dt +
             z_hat_t_0 * (1.0 -  z_hat_t_0) * mu_ * dt
             )
     cdef innovation = 0.0
     if z_hat_t_0 == 1.0:
-        return z_hat_t_0 + predictable
+        res = z_hat_t_0 + predictable
     else:
         innovation = (
            - z_hat_t_0 * dD_t + 
            z_hat_t_1 * dD_t / (1.0 - z_hat_t_0)
            )
-        return z_hat_t_0 + predictable + innovation
+        res = z_hat_t_0 + predictable + innovation
+    return max(0.0, res)    
 
 
 cdef double update_local(
@@ -27,20 +30,23 @@ cdef double update_local(
         ):
     cdef double mu_ = ival.at(EventType.D)
     cdef double lambda_ = ival.at(EventType.A)
+    cdef double res
+    z_hat_t_0 = min(1.0, max(0.0, z_hat_t_0))
     cdef predictable = (
             z_hat_t[Neighbours._below] * lambda_ * dt -
             z_hat_t[Neighbours._same] * lambda_ * dt - 
-            z_hat_t[Neighbours._same] * z_hat_t_0 * mu_ * dt
+            z_hat_t[Neighbours._same] * (1.0 - z_hat_t_0) *  mu_ * dt
             )
     cdef innovation = 0.0
     if z_hat_t_0 == 1.0:
-        return z_hat_t[Neighbours._same] + predictable
+        res = z_hat_t[Neighbours._same] + predictable
     else:
         innovation = (
             - z_hat_t[Neighbours._same] * dD_t + 
-            z_hat_t[Neighbours._above] * dD_t / (1.0 - z_hat_t_0)
+            z_hat_t[Neighbours._above] * dD_t  / (1.0 - z_hat_t_0)
             )
-        return z_hat_t[Neighbours._same] + predictable + innovation
+        res = z_hat_t[Neighbours._same] + predictable + innovation
+    return max(0.0, res)    
 
 
 cdef class Z_hat(Process):
@@ -114,6 +120,7 @@ cdef class Z_hat(Process):
         cdef double z_hat_t_0
         cdef Z_hat_t previous_filter
         cdef vector[double] new_distribution = vector[double](num_states, 0.0)
+        cdef double mass
         cdef double new_expected_value 
 
         # Run
@@ -129,6 +136,7 @@ cdef class Z_hat(Process):
                 self.dD_t.at(t + 1),
                 dt)
             z_hat_t_0 = previous_filter.distribution.at(0)
+            mass = new_distribution.front()
             for n in range(1, num_states):
                 z_hat_t_local[Neighbours._below] = previous_filter.distribution.at(n - 1)
                 z_hat_t_local[Neighbours._same] = previous_filter.distribution.at(n)
@@ -142,8 +150,78 @@ cdef class Z_hat(Process):
                         self.intensities.at(t),
                         self.dD_t.at(t + 1),
                         dt)
+                mass += new_distribution[n]
                 new_expected_value += n * new_distribution[n]
+            if mass > 0.0:    
+                new_expected_value /=  mass 
+                for n in range(num_states):
+                    new_distribution[n] /= mass
             new_z_hat_t.distribution = new_distribution        
             new_z_hat_t.expected_value = new_expected_value
             new_z_hat_t.time = self.times.at(t + 1)
             self.process.push_back(new_z_hat_t)
+
+cpdef np.ndarray[double, ndim=1] regularise_expected_values(
+        np.ndarray[double, ndim=1] times, 
+        np.ndarray[long, ndim=1] states, 
+        np.ndarray[double, ndim=1] z_hat, 
+        double beta
+        ):
+    cdef vector[double] times_vector = times.tolist()
+    cdef vector[long] states_vector = states.tolist()
+    cdef vector[double] z_hat_vector = z_hat.tolist()
+    cdef np.ndarray[double, ndim=1] res = np.array(
+            _regularise_expected_values(times_vector, states_vector,
+                z_hat_vector, beta),
+            dtype=np.float64
+        )
+    return res
+    
+
+
+cdef vector[double] _regularise_expected_values(
+        vector[double] times, 
+        vector[long] states,
+        vector[double] expected_values,
+        double beta
+        ):
+    cdef long unsigned int size = states.size()
+    assert size == times.size()
+    assert size == expected_values.size()
+    cdef vector[double] res
+    res.reserve(size)
+    cdef vector[double] F
+    F.reserve(size)
+    cdef vector[double] M
+    M.reserve(size)
+    cdef double decay
+    cdef double error
+    cdef long unsigned int t
+    error = (states.front() - expected_values.front())**2
+    if error <= 0.0:
+        F.push_back(expected_values.front())
+        M.push_back(1.0)
+        res.push_back(expected_values.front())
+    else:
+        F.push_back(expected_values.front() / error)
+        M.push_back(1.0 / error)
+        res.push_back(expected_values.front())
+    for t in range(size - 1):
+        decay = exp(-beta * (times.at(t + 1) - times.at(t)))
+        error = (states.at(t + 1) - expected_values.at(t + 1))**2
+        if error <= 0.0:
+            F.push_back(expected_values.at(t + 1))
+            M.push_back(1.0)
+            res.push_back(F.at(t + 1))
+        else:
+            F.push_back(F.at(t) * decay + expected_values.at(t + 1) / error)
+            M.push_back(M.at(t) * decay + 1.0 / error)
+            res.push_back(F.at(t + 1) / M.at(t + 1))
+    return res
+
+
+
+
+
+
+

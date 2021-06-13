@@ -25,6 +25,6 @@ def estimate_param(
             disp=disp,
             launch_async=launch_async)
     best = utils.select_best_optimization_result(results)
-    print("\nEstimated parameters for event type {}:".format(direction))
-    print(best)
+    cdef str info = "\nEstimated parameters for event type {}:\n{}".format(direction, best)
+    utils.logger.info(info)
     return best.get('x')

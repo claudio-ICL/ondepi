@@ -2,7 +2,24 @@ import os
 import multiprocessing as mp
 import numpy as np
 import pandas as pd
+import logging
 
+
+def get_logger(str name="ondepi", level=logging.INFO):
+    logger = logging.Logger("ondepi")
+    logger.setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    logger.addHandler(ch)
+    return logger
+
+logger = get_logger()
+
+
+def check_nonempty_df(df):
+    if len(df)==0:
+        logger.error("Dafatame has length zero")
+        raise ValueError()
 
 def timestamp_to_idx(
         np.ndarray[double, ndim=1] times):
@@ -175,23 +192,3 @@ def generate_init_guesses(
     return init_guesses   
 
 
-
-def produce_df_detection(queue):
-    df_filter = queue.get_expected_process().reset_index()
-    dt = df_filter['time'].diff().min()
-    precision = max(1, 10 ** (1 - np.ceil(np.log10(dt))))
-    print("precision: {}".format(precision))
-    df_filter.insert(0, 'idx', np.array(
-        np.floor(precision*df_filter['time'].values), dtype=np.int64))
-    df = queue.get_evolution().reset_index()
-    df.insert(0, 'idx', np.array(
-        np.floor(precision*df['time'].values), dtype=np.int64))
-    df = df.merge(df_filter, on='idx', how='outer',
-                  suffixes=(' sample', ' filter'), validate='1:1')
-    df.insert(5, 'error', df['state'].values - df['expected val'].values)
-    df.dropna(inplace=True)
-    df['state'] = df['state'].astype(np.int)
-    cols = ['idx', 'time sample', 'time filter',
-            'state', 'expected val', 'error']
-    df = df[cols]
-    return df

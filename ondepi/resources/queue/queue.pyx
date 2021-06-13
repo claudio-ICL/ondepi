@@ -1,6 +1,8 @@
 import pandas as pd
+import numpy as np
 from scipy.optimize import minimize
 from ondepi.resources.likelihood.calibration import estimate_param
+from ondepi.resources import utils
 
 cdef class Queue:
     def __init__(self):
@@ -21,28 +23,22 @@ cdef class Queue:
     cpdef Sample get_sample(self) except *:
         return self.sample
 
-    def get_evolution(self):
-        cdef long unsigned int size = self.sample.observations.size()
-        cdef vector[double] time
-        time.reserve(size)
-        cdef vector[long] val
-        val.reserve(size)
-        cdef long unsigned int t
-        for t in range(size):
-            time.push_back(self.sample.observations[t].time)
-            val.push_back(self.sample.observations[t].state)
-        df = pd.DataFrame({
-            'time': time,
-            'state': val})
-        ser = df.set_index('time')
-        return ser
+    def get_df_sample(self):
+        return utils.sample_to_df(self.sample)
 
+    def get_evolution(self):
+        df = utils.sample_to_df(self.sample)
+        ser = df.loc[:, ['time', 'state']].set_index('time')
+        return ser
 
     cpdef vector[IntensityVal] get_intensity_process(self) except *:
         return self.intensity.get_process()
 
     cpdef vector[double] get_intensity_times(self) except *:
         return self.intensity.get_times()
+
+    def get_df_intensity_process(self):
+        return self.intensity.get_df_process()
 
     cpdef vector[Z_hat_t] get_filter_process(self) except *:
         return self.z_hat.get_process()
@@ -118,6 +114,14 @@ cdef class Queue:
                 first_state
                 )
 
+    cpdef void populate_intensity(self, double dt):
+        cdef Sample* this_sample = &(self.sample)
+        # Populate history of intensities
+        self.intensity.set_sample(this_sample)
+        self.intensity.init_times(dt)
+        self.intensity.init_process()
+        self.intensity.populate()
+
     cdef void _filter(self, double dt, long unsigned int num_states):
         cdef Sample* this_sample = &(self.sample)
         # Populate history of intensities
@@ -138,6 +142,24 @@ cdef class Queue:
 
     cpdef void filter(self, double dt, long unsigned int num_states) except *:
         self._filter(dt, num_states)
+
+    cpdef void calibrate_on_self(self,
+            int num_guesses=5,
+            double ftol=1e-12,
+            double gtol=1e-6,
+            int maxiter=1000, 
+            int disp=0,
+            launch_async=False, 
+            ) except *:
+        cdef Sample sample = self.sample
+        self.calibrate(
+            sample,    
+            num_guesses=num_guesses,
+            ftol=ftol,
+            gtol=gtol,
+            maxiter=maxiter, 
+            disp=disp,
+            launch_async=launch_async)
 
     cpdef void calibrate(self, 
             Sample sample, 
@@ -166,3 +188,32 @@ cdef class Queue:
                 disp=disp,
                 launch_async=launch_async)
         self.set_param(param_D, param_A)
+
+
+
+
+def produce_df_detection(queue, double beta=1.0):
+    df_filter = queue.get_expected_process().reset_index()
+    utils.check_nonempty_df(df_filter)
+    cdef double dt = df_filter['time'].diff().min()
+    cdef long precision = <long>max(1, 10 ** (1 - <long>ceil(log10(dt))))
+    df_filter.insert(0, 'idx', np.array(
+        np.floor(precision*df_filter['time'].values), dtype=np.int64))
+    df = queue.get_evolution().reset_index()
+    utils.check_nonempty_df(df)
+    df.insert(0, 'idx', np.array(
+        np.floor(precision*df['time'].values), dtype=np.int64))
+    df = df.merge(df_filter, on='idx', how='outer',
+                  suffixes=(' sample', ' filter'), validate='1:1')
+    df.dropna(inplace=True)
+    cdef np.ndarray[double, ndim=1] times = np.array(df['time sample'].values, dtype=np.float64)
+    cdef np.ndarray[long, ndim=1] states = np.array(df['state'].values, dtype=np.int64)
+    cdef np.ndarray[double, ndim=1] z_hat = np.array(df['expected val'].values, dtype=np.float64)
+    cdef np.ndarray[double, ndim=1] reg = regularise_expected_values(times, states, z_hat, beta)
+    df.insert(df.shape[1], 'predictor', reg)
+    df.insert(df.shape[1], 'error', df['state'].values - df['predictor'].values)
+    df['state'] = df['state'].astype(np.int64)
+    cols = ['idx', 'time sample', 'time filter',
+            'state', 'expected val', 'predictor', 'error']
+    df = df[cols]
+    return df

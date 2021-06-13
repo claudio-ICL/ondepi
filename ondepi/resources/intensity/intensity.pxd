@@ -4,6 +4,7 @@
 from libc.math cimport exp, log
 from libcpp.vector cimport vector
 from libcpp.map cimport map as cmap
+cimport numpy as np
 from ondepi.resources.intensity.impact_functions cimport Alpha_D, Alpha_A
 from ondepi.resources.ingredients cimport EventType, EventState, Process
 

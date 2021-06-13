@@ -54,6 +54,7 @@ def parse_df_sample(
             np.array(df_s['time_i'].values, dtype=np.int64))
     df_s.insert(0, 'time', times)
     df_s.insert(1, 'state', np.array(initial_state + df_s['N_A'].values - df_s['N_D'].values, dtype=np.int64))
+    df_s = utils.remove_negative_states(df_s)
     df_s = df_s[['time_i', 'time', 'event', 'state', 'N_D', 'N_A']]
     return df_s
 
@@ -94,4 +95,5 @@ def parse_price_level(
             }
     df = df.groupby(groupby_cols).agg(agg_dict).reset_index()
     df = utils.drop_same_time_i(df)
+    utils.check_nonempty_df(df)
     return df

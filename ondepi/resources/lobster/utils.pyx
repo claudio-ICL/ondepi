@@ -3,14 +3,15 @@ import pandas as pd
 from functools import lru_cache
 from ondepi.settings import data_path
 from ondepi.resources.utils import (
+        get_logger,
+        check_nonempty_df,
         timestamp_to_idx,
         idx_to_timestamp,
         arrays_to_sample, 
         sample_to_arrays,
 )
-from logging import Logger
 
-logger = Logger(__name__)
+logger = get_logger()
 
 def lob_header(int n_levels=10, first_col_time=False):
     cdef list cols = [
@@ -227,3 +228,14 @@ def join_events(df_D, df_A):
     df['N_A'] = df['N_A'].astype(np.int64)
     df['N_D'] = df['N_D'].astype(np.int64)
     return df
+
+def remove_negative_states(df):
+    if 'state' not in df.columns:
+        error_str = "'state' not found in columns {}".format(df.columns.tolist())
+        logger.error(error_str)
+        raise KeyError('state')
+    to_drop = df['state'] < 0
+    idx_to_drop = df.loc[to_drop, :].index
+    df = df.drop(index=idx_to_drop).reset_index()
+    return df
+

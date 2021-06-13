@@ -1,6 +1,9 @@
 # distutils: language = c++
 # cython: language_level = 3
 
+import numpy as np
+import pandas as pd
+
 cdef class Intensity(Process):
     def __cinit__(
             self,
@@ -72,6 +75,20 @@ cdef class Intensity(Process):
 
     cdef vector[IntensityVal] get_process(self):
         return self.process
+
+    def get_df_process(self):
+        cdef long unsigned int size = self.process.size()
+        cdef np.ndarray[double, ndim=1] times = self.get_times_arr()
+        cdef np.ndarray[double, ndim=1] intensity_D = np.zeros(size, dtype=np.float64)
+        cdef np.ndarray[double, ndim=1] intensity_A = np.zeros(size, dtype=np.float64)
+        cdef IntensityVal val
+        cdef long unsigned int n
+        for n in range(size):
+            val = self.process.at(n)
+            intensity_D[n] = val.at(EventType.D)
+            intensity_A[n] = val.at(EventType.A)
+        df = pd.DataFrame({'time': times, 'intensity_D': intensity_D, 'intensity_A': intensity_A})
+        return df
 
     cdef void init_process(self):
         self.process.clear()

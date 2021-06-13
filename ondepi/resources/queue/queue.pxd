@@ -3,6 +3,7 @@
 
 cimport numpy as np
 
+from libc.math cimport log10, ceil
 from libcpp.vector cimport vector
 from libcpp.map cimport map as cmap
 from ondepi.resources.ingredients cimport (
@@ -10,7 +11,7 @@ from ondepi.resources.ingredients cimport (
 )
 from ondepi.resources.intensity.intensity cimport Intensity, IntensityVal
 from ondepi.resources.simulation.simulation cimport simulate
-from ondepi.resources.filter.filter cimport Z_hat, Z_hat_t
+from ondepi.resources.filter.filter cimport Z_hat, Z_hat_t, regularise_expected_values
 
 ctypedef cmap[EventType, HawkesParam] QueueParam    
 
@@ -24,6 +25,7 @@ cdef class Queue:
     cdef Z_hat z_hat
     cpdef vector[IntensityVal] get_intensity_process(self) except *
     cpdef vector[double] get_intensity_times(self) except *
+    cpdef void populate_intensity(self, double dt)
     cpdef vector[Z_hat_t] get_filter_process(self) except *
     cpdef vector[double] get_filter_times(self) except *
     cpdef vector[int] get_filter_dD_t(self) except *
@@ -44,6 +46,14 @@ cdef class Queue:
     ) except *  
     cdef void _filter(self, double dt, long unsigned int num_states)
     cpdef void filter(self, double dt, long unsigned int num_states) except *
+    cpdef void calibrate_on_self(self, 
+            int num_guesses=*,
+            double ftol=*,
+            double gtol=*,
+            int maxiter=*, 
+            int disp=*,
+            launch_async=*, 
+            ) except *
     cpdef void calibrate(self, 
             Sample sample, 
             int num_guesses=*,

@@ -1,6 +1,8 @@
 # distutils: language = c++
 # cython: language_level = 3
 
+cimport numpy as np
+from libc.math cimport exp, log
 from libcpp.vector cimport vector
 from libcpp.map cimport map as cmap
 from ondepi.resources.ingredients cimport EventType, Process
@@ -39,3 +41,15 @@ cdef class Z_hat(Process):
     cdef Z_hat_t get_time_slice(self, double t)
     cdef void populate(self, long unsigned int num_states)
 
+cpdef np.ndarray[double, ndim=1] regularise_expected_values(
+        np.ndarray[double, ndim=1] times, 
+        np.ndarray[long, ndim=1] states, 
+        np.ndarray[double, ndim=1] z_hat, 
+        double beta)
+
+
+cdef vector[double] _regularise_expected_values(
+        vector[double] times, 
+        vector[long] states,
+        vector[double] expected_values,
+        double beta)

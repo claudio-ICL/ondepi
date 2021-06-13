@@ -2,6 +2,7 @@
 # cython: language_level = 3
 
 from libcpp.vector cimport vector
+cimport numpy as np
 
 cdef enum EventType:
     D, A
@@ -33,6 +34,7 @@ cdef class Process:
     cdef vector[double] times
     cdef void set_sample(self, Sample* sample)
     cdef void init_times(self, double dt)
+    cpdef void p_init_times(self, double dt)
     cdef vector[double] get_times(self)
     cdef void set_times(self, vector[double] times)
     cdef vector[int] dD_t

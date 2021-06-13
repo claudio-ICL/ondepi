@@ -1,28 +1,4 @@
-#cdef vector[double] times_D_in_sample(Sample sample):
-#    cdef long unsigned int num_observations = sample.observations.size()
-#    cdef vector[double] times
-#    times.reserve(num_observations)
-#    cdef long unsigned int i=0
-#    cdef EventState es
-#    for i in range(num_observations):
-#        es = sample.observations.at(i)
-#        if es.event == EventType.D:
-#            times.push_back(es.time)
-#    return times        
-#
-#cdef vector[long] states_D_in_sample(Sample sample):
-#    cdef long unsigned int num_observations = sample.observations.size()
-#    cdef vector[long] states
-#    states.reserve(num_observations)
-#    cdef long unsigned int i=0
-#    cdef EventState es
-#    for i in range(num_observations):
-#        es = sample.observations.at(i)
-#        if es.event == EventType.D:
-#            states.push_back(es.state)
-#    return states        
-        
-        
+import numpy as np
 
 cdef class Process:
     def __cinit__(self):
@@ -33,6 +9,10 @@ cdef class Process:
 
     cdef vector[double] get_times(self):
         return self.times
+
+    def get_times_arr(self):
+        cdef np.ndarray[double, ndim=1] times = np.array(self.get_times(), dtype=np.float64)
+        return times
 
     cdef void set_times(self, vector[double] times):
         self.times = times
@@ -48,6 +28,9 @@ cdef class Process:
 
     cdef void set_dA_t(self, vector[int] dA_t):
         self.dA_t = dA_t
+
+    cpdef void p_init_times(self, double dt):
+        self.init_times(dt)
 
     cdef void init_times(self, double dt):
         # Clear vectors
