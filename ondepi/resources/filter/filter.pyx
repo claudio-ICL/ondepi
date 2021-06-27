@@ -32,10 +32,17 @@ cdef double update_local(
             z_hat_t[Neighbours._same] * (intensity.lambda_A_same + intensity.lambda_D_same) * dt +
             z_hat_t[Neighbours._above] * intensity.lambda_D_above * dt
             )
-    cdef double innovation = (
+    cdef double innovation = 0.0
+    if mu > 0.0:        
+        innovation = (
             (intensity.lambda_D_above * z_hat_t[Neighbours._above] - z_hat_t[Neighbours._same] * mu) * 
             (dD_t / mu - dt)
-            )
+        )
+    else:
+        innovation = (
+            (intensity.lambda_D_above * z_hat_t[Neighbours._above] ) * 
+            (- dt)
+        )
     cdef double  res = z_hat_t[Neighbours._same] + predictable + innovation
     return max(0.0, res)    
 

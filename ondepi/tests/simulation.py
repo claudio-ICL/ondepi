@@ -4,20 +4,20 @@ from ondepi.resources.queue.queue import Queue
 def main():
     queue = Queue()
     queue._set_param(
-        nu_D_0=1.0,
-        nu_D_1=1.0,
-        nu_D_2=1.0,
-        alpha_D=1.0,
+        nu_D_0=5.0,
+        nu_D_1=-1.0,
+        nu_D_2=2.0,
+        alpha_D=4.0,
         beta_D=3.0,
         nu_A_0=1.0,
-        nu_A_1=1.0,
-        nu_A_2=1.0,
+        nu_A_1=0.0,
+        nu_A_2=3.0,
         alpha_A=1.0,
-        beta_A=0.5
+        beta_A=2.0
     )
     queue.simulate(
         max_time=100.0,
-        max_events=4,
+        max_events=10,
         first_event=1,
         first_state=2
     )

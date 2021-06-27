@@ -18,14 +18,6 @@ cdef struct IntensityValForFilterUpdate:
     double lambda_D_same
     double lambda_D_above
 
-# ctypedef cmap[EventType, BaseRate] BaseRates
-# ctypedef cmap[EventType, ImpactRate] ImpactRates
-# cdef struct BaseRates:
-#     BaseRate D
-#     BaseRate A
-# cdef struct ImpactRates:
-#     ImpactRate D
-#     ImpactRate A
 
 cdef class Intensity(Process):
     cdef BaseRate baserate_D

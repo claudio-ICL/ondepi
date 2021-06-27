@@ -108,8 +108,8 @@ cdef class Intensity(Process):
             intensity_A[n] = val.at(EventType.A)
             if include_baserates:
                 state = self.state_trajectory.at(n)
-                baserate_D[n] = self.baserates.at(EventType.D).eval__(state)
-                baserate_A[n] = self.baserates.at(EventType.A).eval__(state)
+                baserate_D[n] = self.baserate_D.eval__(state)
+                baserate_A[n] = self.baserate_A.eval__(state)
         if include_baserates:
             df = pd.DataFrame({'time': times, 'state': states, 
                 'baserate_D': baserate_D, 'baserate_A': baserate_A,
@@ -163,9 +163,18 @@ cdef class Intensity(Process):
             return 0.0
         cdef double lambda_ = self.process.at(t).at(event_type)
         cdef long historical_state = self.state_trajectory.at(t)
-        cdef double pathwise_component = lambda_ - self.baserates.at(event_type).eval__(historical_state)
-        assert pathwise_component >= 0.0
-        cdef double res = self.baserates.at(event_type).eval__(state) + pathwise_component
+        cdef double pathwise_component = 0.0
+        if event_type == EventType.D:
+            pathwise_component = lambda_ - self.baserate_D.eval__(historical_state)
+        else:
+            pathwise_component = lambda_ - self.baserate_A.eval__(historical_state)
+        pathwise_component = max(0.0, pathwise_component)
+        cdef double baserate_component = 0.0
+        if event_type == EventType.D:
+            baserate_component = self.baserate_D.eval__(state)
+        else:
+            baserate_component = self.baserate_A.eval__(state)
+        cdef double res = baserate_component + pathwise_component
         return res
 
     cdef IntensityValForFilterUpdate get_intensities_for_filter_update(self, long state, long unsigned int t):
@@ -186,7 +195,7 @@ cdef class Intensity(Process):
         res.clear()
         res.reserve(num_states)
         cdef long state
-        for state in num_states:
+        for state in range(num_states):
             res.push_back(self.conditional_intensity_from_process(
                 EventType.D, state, t)
                 )
