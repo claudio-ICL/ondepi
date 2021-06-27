@@ -46,6 +46,9 @@ cdef class Queue:
     def get_expected_process(self):
         return self.z_hat.get_expected_process()
 
+    def get_variances_of_process(self):
+        return self.z_hat.get_variances_of_process()
+
     cpdef vector[double] get_filter_times(self) except *:
         return self.z_hat.get_times()
 
@@ -190,27 +193,50 @@ cdef class Queue:
 
 
 def produce_df_detection(queue, double beta=1.0):
+    # Expected value from filter 
     df_filter = queue.get_expected_process().reset_index()
     utils.check_nonempty_df(df_filter)
     cdef double dt = df_filter['time'].diff().min()
     cdef long precision = <long>max(1, 10 ** (1 - <long>ceil(log10(dt))))
     df_filter.insert(0, 'idx', np.array(
         np.floor(precision*df_filter['time'].values), dtype=np.int64))
+
+    # Evolution of price queue
     df = queue.get_evolution().reset_index()
     utils.check_nonempty_df(df)
     df.insert(0, 'idx', np.array(
         np.floor(precision*df['time'].values), dtype=np.int64))
     df = df.merge(df_filter, on='idx', how='outer',
                   suffixes=(' sample', ' filter'), validate='1:1')
+
+    # Variances of the filter
+    df_var = queue.get_variances_of_process().reset_index()
+    utils.check_nonempty_df(df_var)
+    df_var.insert(0, 'idx', np.array(
+        np.floor(precision*df_var['time'].values), dtype=np.int64))
+    df_var.insert(1, 'std', np.sqrt(df_var['variance'].values))
+    df = df.merge(df_var, on='idx', how='outer',
+                  suffixes=('', ' variance'), validate='1:1')
     df.dropna(inplace=True)
+
+    # Define predictor
     cdef np.ndarray[double, ndim=1] times = np.array(df['time sample'].values, dtype=np.float64)
     cdef np.ndarray[long, ndim=1] states = np.array(df['state'].values, dtype=np.int64)
     cdef np.ndarray[double, ndim=1] z_hat = np.array(df['expected val'].values, dtype=np.float64)
     cdef np.ndarray[double, ndim=1] reg = regularise_expected_values(times, states, z_hat, beta)
     df.insert(df.shape[1], 'predictor', reg)
+
+    # Define error
     df.insert(df.shape[1], 'error', df['state'].values - df['predictor'].values)
+
+    # Define detector
+    df.insert(df.shape[1], 'detector', df['error'])
+    idx = df['variance'] > 0.0
+    df.loc[idx, 'detector'] = df.loc[idx, 'error'] / df.loc[idx, 'std']
+
+    # Format result
     df['state'] = df['state'].astype(np.int64)
     cols = ['idx', 'time sample', 'time filter',
-            'state', 'expected val', 'predictor', 'error']
+            'state', 'expected val', 'variance', 'predictor', 'error', 'detector']
     df = df[cols]
     return df

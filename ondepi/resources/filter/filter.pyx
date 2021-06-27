@@ -58,17 +58,39 @@ cdef class Z_hat(Process):
 
     def get_expected_process(self):
         cdef long unsigned int size = self.process.size()
-        cdef vector[double] time
-        time.reserve(size)
-        cdef vector[double] val
-        val.reserve(size)
+        cdef vector[double] times
+        times.reserve(size)
+        cdef vector[double] vals
+        vals.reserve(size)
         cdef long unsigned int t
         for t in range(size):
-            time.push_back(self.process[t].time)
-            val.push_back(self.process[t].expected_value)
+            times.push_back(self.process[t].time)
+            vals.push_back(self.process[t].expected_value)
         df = pd.DataFrame({
-            'time': time,
-            'expected val': val})
+            'time': times,
+            'expected val': vals})
+        ser = df.set_index('time')
+        return ser
+
+    def get_variances_of_process(self):
+        cdef long unsigned int size = self.process.size()
+        cdef vector[double] times
+        times.reserve(size)
+        cdef double variance = 0.0
+        cdef vector[double] variances
+        variances.reserve(size)
+        cdef Z_hat_t z_hat_t
+        cdef long unsigned int t, n
+        for t in range(size):
+            variance = 0.0
+            z_hat_t = self.process.at(t)
+            times.push_back(z_hat_t.time)
+            for n in range(z_hat_t.distribution.size()):
+                variance += z_hat_t.distribution[n] * (n - z_hat_t.expected_value)**2 
+            variances.push_back(variance)
+        df = pd.DataFrame({
+            'time': times,
+            'variance': variances})
         ser = df.set_index('time')
         return ser
 
@@ -160,7 +182,7 @@ cdef class Z_hat(Process):
                 new_expected_value += n * new_distribution[n]
                 # End n-indexed for-loop (computation of new distribution)
 
-            # Normalise mass    
+            # Normalise by mass    
             if mass > 0.0:    
                 new_expected_value /=  mass 
                 for n in range(num_states):
