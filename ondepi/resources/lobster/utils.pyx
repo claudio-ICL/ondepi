@@ -162,8 +162,10 @@ def is_time_increasing(df):
     cdef np.ndarray[double, ndim=1] dt = np.diff(time)
     return np.all(dt>0.0)
 
+
 def drop_same_time_i(df):
     return df.groupby(['time_i']).last().reset_index()
+
 
 def derive_df_event(df, EventType type_, standard_size=None):
     if standard_size is None:
@@ -188,6 +190,7 @@ def derive_df_event(df, EventType type_, standard_size=None):
     df.insert(3, 'event_type', type_)
     return df
 
+
 cdef vector[long] define_event_times(
         vector[long] time_i,
         vector[long] dN,
@@ -203,6 +206,7 @@ cdef vector[long] define_event_times(
         for k in range(dN.at(t)):
             times_i.push_back(time + k)
     return times_i
+
 
 def define_events(
         df,
