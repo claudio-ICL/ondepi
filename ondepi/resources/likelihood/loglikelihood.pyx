@@ -10,6 +10,11 @@ cdef EvalLoglikelihood eval_loglikelihood(
          double T_end # length of the observation period, assumed to start at 0.0
          ):
 
+    # Impose bounds
+    nu_2 = max(0.0, nu_2)
+    alpha = max(0.0, alpha)
+    beta = max(1.e-6, beta)
+
     # Instantiate base rate
     cdef BaseRate baserate = BaseRate(nu_0, nu_1, nu_2)
     baserate.set_state(states.front())
@@ -34,16 +39,21 @@ cdef EvalLoglikelihood eval_loglikelihood(
 
     # Initialise l_plus
     cdef: 
-        double l_plus = log(lambda_)
-        double l_plus_nu_0 = baserate.get_partial_0() / lambda_
-        double l_plus_nu_1 = baserate.get_partial_1() / lambda_
-        double l_plus_nu_2 = baserate.get_partial_2() / lambda_
+        double l_plus = 0.0
+        double l_plus_nu_0 = 0.0
+        double l_plus_nu_1 = 0.0
+        double l_plus_nu_2 = 0.0
         double l_plus_alpha = 0.0
         double l_plus_beta = 0.0
-    if event_type == EventType.A:
-        l_plus_alpha = v_A / lambda_
-    else:
-        l_plus_alpha = v_D / lambda_
+    if lambda_ > 0.0:    
+        l_plus = log(lambda_)
+        l_plus_nu_0 = baserate.get_partial_0() / lambda_
+        l_plus_nu_1 = baserate.get_partial_1() / lambda_
+        l_plus_nu_2 = baserate.get_partial_2() / lambda_
+        if event_type == EventType.A:
+            l_plus_alpha = v_A / lambda_
+        else:
+            l_plus_alpha = v_D / lambda_
 
   
     # Initialise l_minus
@@ -112,16 +122,17 @@ cdef EvalLoglikelihood eval_loglikelihood(
 
         # Update l_plus
         if event_type == next_event:
-            l_plus += log(lambda_)
-            l_plus_nu_0 += baserate.get_partial_0() / lambda_
-            l_plus_nu_1 += baserate.get_partial_1() / lambda_
-            l_plus_nu_2 += baserate.get_partial_2() / lambda_
-            if event_type == EventType.A:
-                l_plus_alpha += new_v_A / lambda_
-                l_plus_beta += new_v_A_beta / lambda_
-            else:
-                l_plus_alpha += new_v_D / lambda_
-                l_plus_beta += new_v_D_beta / lambda_
+            if lambda_ > 0.0:
+                l_plus += log(lambda_)
+                l_plus_nu_0 += baserate.get_partial_0() / lambda_
+                l_plus_nu_1 += baserate.get_partial_1() / lambda_
+                l_plus_nu_2 += baserate.get_partial_2() / lambda_
+                if event_type == EventType.A:
+                    l_plus_alpha += new_v_A / lambda_
+                    l_plus_beta += new_v_A_beta / lambda_
+                else:
+                    l_plus_alpha += new_v_D / lambda_
+                    l_plus_beta += new_v_D_beta / lambda_
 
         # Update l_minus
         if next_event == EventType.D:

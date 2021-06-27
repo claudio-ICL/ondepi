@@ -47,7 +47,7 @@ def generate_init_guesses(
         ):
     cdef long unsigned int n = 0
     cdef np.ndarray[double, ndim=1] T_event = utils.extract_times_of_event(times, events, event=event)
-    cdef double interarrival_avg = np.mean(np.diff(T_event))
+    cdef double interarrival_avg = max(1e-12, np.mean(np.diff(T_event)))
     cdef list nu_0s = np.random.uniform(-10.0, 10.0, size=num).tolist()
     cdef list nu_1s = np.random.uniform(-10.0, 10.0, size=num).tolist()
     cdef list alphas = np.random.uniform(0.0, 10.0, size=num).tolist()
