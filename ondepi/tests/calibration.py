@@ -21,9 +21,9 @@ def main():
     queue_.calibrate(
         queue.get_sample(),
         num_guesses=12,
-        ftol=1e-14,
-        gtol=1e-8,
-        maxiter=2000,
+        ftol=1e-15,
+        gtol=1e-10,
+        maxiter=100,
         disp=0)
     print("\nEstimated param:\n{}".format(queue_.get_param()))
 

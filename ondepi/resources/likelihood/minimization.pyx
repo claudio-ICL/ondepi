@@ -63,7 +63,7 @@ def generate_init_guesses(
         param[4] = beta
         guess = np.array(param, copy=True)
         init_guesses.append(guess)
-        param[2] = 0.01 / interarrival_avg
+        param[2] = 1.0e-4 / interarrival_avg
         guess = np.array(param, copy=True)
         init_guesses.append(guess)
     return init_guesses   
