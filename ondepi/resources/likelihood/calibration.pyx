@@ -1,5 +1,4 @@
-from ondepi.resources.likelihood.departures import launch_minimization_D
-from ondepi.resources.likelihood.arrivals import launch_minimization_A
+from ondepi.resources.likelihood.minimization import launch_minimization
 from ondepi.resources import utils
 
 def estimate_param(
@@ -14,8 +13,8 @@ def estimate_param(
         launch_async=False, 
         ):
     times, events, states = utils.sample_to_arrays(sample)
-    fun = launch_minimization_D if direction == EventType.D else launch_minimization_A
-    results = fun(
+    results = launch_minimization(
+            direction,
             times, events, states,
             T_end, 
             num_guesses=num_guesses,

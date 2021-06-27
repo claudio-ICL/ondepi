@@ -1,18 +1,18 @@
 cdef Sample simulate(
     double max_time, long unsigned int max_events, 
-    double alpha_D_0, double alpha_D_1, double alpha_D_2,
-    double beta_D, double nu_D,
-    double alpha_A_0, double alpha_A_1, double alpha_A_2,
-    double beta_A, double nu_A,
+    double nu_D_0, double nu_D_1, double nu_D_2,
+    double alpha_D, double beta_D,
+    double nu_A_0, double nu_A_1, double nu_A_2,
+    double alpha_A, double beta_A,
     EventType first_event,
     long first_state
 ):
     # Initialise intensity
     cdef Intensity intensity = Intensity(
-            alpha_D_0, alpha_D_1, alpha_D_2, 
-            beta_D, nu_D, 
-            alpha_A_0, alpha_A_1, alpha_A_2, 
-            beta_A, nu_A
+            nu_D_0, nu_D_1, nu_D_2, 
+            alpha_D, beta_D, 
+            nu_A_0, nu_A_1, nu_A_2, 
+            alpha_A, beta_A
     )
     intensity.set_first(first_event, first_state)
 

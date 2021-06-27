@@ -33,10 +33,10 @@ cdef class Queue:
     cpdef void set_price(self, long price) except *
     cpdef long get_price(self) except *
     cpdef void _set_param(self,
-        double alpha_D_0 ,double alpha_D_1, double alpha_D_2,
-        double beta_D, double nu_D,
-        double alpha_A_0, double alpha_A_1, double alpha_A_2, 
-        double beta_A, double nu_A
+        double nu_D_0 ,double nu_D_1, double nu_D_2,
+        double alpha_D, double beta_D,
+        double nu_A_0, double nu_A_1, double nu_A_2, 
+        double alpha_A, double beta_A
     ) except *  
     cpdef QueueParam get_param(self)
     cpdef void simulate(self, 

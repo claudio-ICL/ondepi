@@ -89,9 +89,9 @@ def arrays_to_df(
         })
     return df
 
+
 def sample_to_df(Sample sample):
     return arrays_to_df(*sample_to_arrays(sample))
-
 
 
 def launch_serial(fun, list_args):
@@ -162,33 +162,4 @@ def extract_states_at_event(
     idx = events==event
     cdef np.ndarray[long, ndim=1] res = states[idx]
     return res
-
-
-def generate_init_guesses(
-        np.ndarray[double, ndim=1] times,
-        np.ndarray[long, ndim=1] events,
-        long event = 1,
-        int num = 5
-        ):
-    cdef long unsigned int n = 0
-    cdef np.ndarray[double, ndim=1] T_event = extract_times_of_event(times, events, event=event)
-    cdef double interarrival_avg = np.mean(np.diff(T_event))
-    cdef list alpha_1s = np.random.uniform(-10.0, 10.0, size=num).tolist()
-    cdef list alpha_2s = np.random.uniform(0.0, 10.0, size=num).tolist()
-    cdef list betas = np.random.uniform(0.1, 2.0, size=num).tolist()
-    cdef list init_guesses = []
-    cdef np.ndarray[double, ndim=1] param = np.ones(5, dtype=np.float64)
-    cdef np.ndarray[double, ndim=1] guess = np.ones(5, dtype=np.float64)
-    for alpha_1, alpha_2, beta in zip(alpha_1s, alpha_2s, betas):
-        param[1] = alpha_1
-        param[2] = alpha_2
-        param[3] = beta
-        param[4] = 1.0 / interarrival_avg
-        guess = np.array(param, copy=True)
-        init_guesses.append(guess)
-        param[4] = 0.01 / interarrival_avg
-        guess = np.array(param, copy=True)
-        init_guesses.append(guess)
-    return init_guesses   
-
 

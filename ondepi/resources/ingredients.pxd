@@ -16,11 +16,11 @@ cdef struct Sample:
     vector[EventState] observations
 
 cdef struct HawkesParam:
-    double alpha_0
-    double alpha_1
-    double alpha_2
+    double nu_0
+    double nu_1
+    double nu_2
+    double alpha
     double beta
-    double nu
 
 cdef struct EvalLoglikelihood:
     double logL

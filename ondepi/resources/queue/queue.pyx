@@ -56,27 +56,27 @@ cdef class Queue:
         return self.z_hat.get_dA_t()
 
     cpdef void _set_param(self,
-        double alpha_D_0 ,double alpha_D_1, double alpha_D_2,
-        double beta_D, double nu_D,
-        double alpha_A_0, double alpha_A_1, double alpha_A_2, 
-        double beta_A, double nu_A
+        double nu_D_0 ,double nu_D_1, double nu_D_2,
+        double alpha_D, double beta_D,
+        double nu_A_0, double nu_A_1, double nu_A_2, 
+        double alpha_A, double beta_A
         ) except *:
         self.intensity = Intensity(
-            alpha_D_0, alpha_D_1, alpha_D_2,
-            beta_D, nu_D,
-            alpha_A_0, alpha_A_1, alpha_A_2, 
-            beta_A, nu_A
+            nu_D_0, nu_D_1, nu_D_2,
+            alpha_D, beta_D,
+            nu_A_0, nu_A_1, nu_A_2, 
+            alpha_A, beta_A
         )
-        self.param[EventType.D].alpha_0 = alpha_D_0
-        self.param[EventType.D].alpha_1 = alpha_D_1
-        self.param[EventType.D].alpha_2 = alpha_D_2
+        self.param[EventType.D].nu_0 = nu_D_0
+        self.param[EventType.D].nu_1 = nu_D_1
+        self.param[EventType.D].nu_2 = nu_D_2
+        self.param[EventType.D].alpha = alpha_D
         self.param[EventType.D].beta = beta_D
-        self.param[EventType.D].nu = nu_D
-        self.param[EventType.A].alpha_0 = alpha_A_0
-        self.param[EventType.A].alpha_1 = alpha_A_1
-        self.param[EventType.A].alpha_2 = alpha_A_2
+        self.param[EventType.A].nu_0 = nu_A_0
+        self.param[EventType.A].nu_1 = nu_A_1
+        self.param[EventType.A].nu_2 = nu_A_2
+        self.param[EventType.A].alpha = alpha_A
         self.param[EventType.A].beta = beta_A
-        self.param[EventType.A].nu = nu_A
 
     def set_param(self, 
             np.ndarray[double, ndim=1] d, # array of parameters for the departures 
@@ -100,16 +100,16 @@ cdef class Queue:
         self.sample = simulate(
                 max_time,
                 max_events,
-                self.param.at(EventType.D).alpha_0,
-                self.param.at(EventType.D).alpha_1,
-                self.param.at(EventType.D).alpha_2,
+                self.param.at(EventType.D).nu_0,
+                self.param.at(EventType.D).nu_1,
+                self.param.at(EventType.D).nu_2,
+                self.param.at(EventType.D).alpha,
                 self.param.at(EventType.D).beta,
-                self.param.at(EventType.D).nu,
-                self.param.at(EventType.A).alpha_0,
-                self.param.at(EventType.A).alpha_1,
-                self.param.at(EventType.A).alpha_2,
+                self.param.at(EventType.A).nu_0,
+                self.param.at(EventType.A).nu_1,
+                self.param.at(EventType.A).nu_2,
+                self.param.at(EventType.A).alpha,
                 self.param.at(EventType.A).beta,
-                self.param.at(EventType.A).nu,
                 first_event,
                 first_state
                 )
@@ -125,10 +125,7 @@ cdef class Queue:
     cdef void _filter(self, double dt, long unsigned int num_states):
         cdef Sample* this_sample = &(self.sample)
         # Populate history of intensities
-        self.intensity.set_sample(this_sample)
-        self.intensity.init_times(dt)
-        self.intensity.init_process()
-        self.intensity.populate()
+        self.populate_intensity(dt)
 
         # Populate filter
         self.z_hat = Z_hat()
@@ -136,7 +133,7 @@ cdef class Queue:
         self.z_hat.set_times(self.intensity.get_times())
         self.z_hat.set_dD_t(self.intensity.get_dD_t())
         self.z_hat.set_dA_t(self.intensity.get_dA_t())
-        self.z_hat.set_intensities(self.intensity.get_process())
+        self.z_hat.set_intensity(self.intensity)
         self.z_hat.init_process()
         self.z_hat.populate(num_states)
 

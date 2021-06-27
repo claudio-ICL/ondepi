@@ -1,57 +1,46 @@
 import numpy as np
 import pandas as pd
 
-cdef double update_0(double z_hat_t_0, double z_hat_t_1, IntensityVal ival, int dD_t, double dt):
-    cdef double mu_ = ival.at(EventType.D)
-    cdef double lambda_ = ival.at(EventType.A)
-    z_hat_t_0 = min(1.0, max(0.0, z_hat_t_0))
-    cdef predictable = (
-            - z_hat_t_0 * lambda_ * dt +
-            z_hat_t_0 * (1.0 -  z_hat_t_0) * mu_ * dt
+
+cdef double update_0(double z_hat_t_0, double z_hat_t_1, 
+    IntensityValForFilterUpdate intensity,
+    double mu,
+    int dD_t,
+    double dt
+    ):
+    cdef double predictable = (
+            - z_hat_t_0 * intensity.lambda_A_same * dt +
+            z_hat_t_1 * intensity.lambda_D_above * dt
             )
-    cdef innovation = 0.0
-    if z_hat_t_0 == 1.0:
-        res = z_hat_t_0 + predictable
-    else:
-        innovation = (
-           - z_hat_t_0 * dD_t + 
-           z_hat_t_1 * dD_t / (1.0 - z_hat_t_0)
-           )
-        res = z_hat_t_0 + predictable + innovation
+    cdef double innovation = (
+            (intensity.lambda_D_above * z_hat_t_1 - z_hat_t_0 * mu) * 
+            (dD_t / mu - dt)
+            )
+    cdef double  res = z_hat_t_0 + predictable + innovation
     return max(0.0, res)    
 
 
 cdef double update_local(
-        Z_hat_t_local z_hat_t, 
-        double z_hat_t_0,
-        IntensityVal ival,
-        int dD_t,
-        double dt
-        ):
-    cdef double mu_ = ival.at(EventType.D)
-    cdef double lambda_ = ival.at(EventType.A)
-    cdef double res
-    z_hat_t_0 = min(1.0, max(0.0, z_hat_t_0))
-    cdef predictable = (
-            z_hat_t[Neighbours._below] * lambda_ * dt -
-            z_hat_t[Neighbours._same] * lambda_ * dt - 
-            z_hat_t[Neighbours._same] * (1.0 - z_hat_t_0) *  mu_ * dt
+    Z_hat_t_local z_hat_t,
+    IntensityValForFilterUpdate intensity,
+    double mu,
+    int dD_t,
+    double dt
+    ):
+    cdef double predictable = (
+            z_hat_t[Neighbours._below] * intensity.lambda_A_below * dt -
+            z_hat_t[Neighbours._same] * (intensity.lambda_A_same + intensity.lambda_D_same) * dt +
+            z_hat_t[Neighbours._above] * intensity.lambda_D_above * dt
             )
-    cdef innovation = 0.0
-    if z_hat_t_0 == 1.0:
-        res = z_hat_t[Neighbours._same] + predictable
-    else:
-        innovation = (
-            - z_hat_t[Neighbours._same] * dD_t + 
-            z_hat_t[Neighbours._above] * dD_t  / (1.0 - z_hat_t_0)
+    cdef double innovation = (
+            (intensity.lambda_D_above * z_hat_t[Neighbours._above] - z_hat_t[Neighbours._same] * mu) * 
+            (dD_t / mu - dt)
             )
-        res = z_hat_t[Neighbours._same] + predictable + innovation
+    cdef double  res = z_hat_t[Neighbours._same] + predictable + innovation
     return max(0.0, res)    
 
 
 cdef class Z_hat(Process):
-#    def __cinit__(self):
-#        pass
 
     cdef void init_process(self):
         self.process.clear()
@@ -76,14 +65,11 @@ cdef class Z_hat(Process):
         ser = df.set_index('time')
         return ser
 
-    cdef void set_intensities(self, vector[IntensityVal] intensities):
-        # It is assumed that the n-th entry of the vector 'intesities'
-        # (i.e. self.intensities[n])
-        # corresponds to the value of the intensity at time self.times[n]
-        self.intensities = intensities
+    cdef void set_intensity(self, Intensity intensity):
+        self.intensity = intensity
     
-    cdef vector[IntensityVal] get_intensities(self):
-        return self.intensities
+    cdef Intensity get_intensity(self):
+        return self.intensity
 
     cdef Z_hat_t get_slice(self, long unsigned int idx):
         return self.process.at(idx)
@@ -120,22 +106,35 @@ cdef class Z_hat(Process):
         cdef double z_hat_t_0
         cdef Z_hat_t previous_filter
         cdef vector[double] new_distribution = vector[double](num_states, 0.0)
+        cdef vector[double] conditional_lambda_D = vector[double](num_states, 0.0)
         cdef double mass
         cdef double new_expected_value 
+        cdef double mu = 0.0
+        cdef long unsigned int t
 
         # Run
         for t in range(-1 + self.times.size()):
             dt = self.times.at(t+1) - self.times.at(t)
             previous_filter = self.process.back()
+
+            # Compute mu
+            mu = 0.0
+            conditional_lambda_D.clear()
+            conditional_lambda_D = self.intensity.get_conditional_lambda_D_intensities_from_process(
+                    num_states, t)
+            for n in range(1, num_states):
+                mu += previous_filter.distribution[n] * conditional_lambda_D[n]
+
+            # Compute new distribution 
             new_distribution = vector[double](num_states, 0.0)
             new_expected_value = 0.0
             new_distribution[0] = update_0(
                 previous_filter.distribution.at(0),
                 previous_filter.distribution.at(1),
-                self.intensities.at(t),
+                self.intensity.get_intensities_for_filter_update(0, t),
+                mu,
                 self.dD_t.at(t + 1),
                 dt)
-            z_hat_t_0 = previous_filter.distribution.at(0)
             mass = new_distribution.front()
             for n in range(1, num_states):
                 z_hat_t_local[Neighbours._below] = previous_filter.distribution.at(n - 1)
@@ -146,20 +145,28 @@ cdef class Z_hat(Process):
                     z_hat_t_local[Neighbours._above] = previous_filter.distribution.at(n + 1)
                 new_distribution[n] = update_local(
                         z_hat_t_local,
-                        z_hat_t_0,
-                        self.intensities.at(t),
+                        self.intensity.get_intensities_for_filter_update(n, t),
+                        mu, 
                         self.dD_t.at(t + 1),
                         dt)
                 mass += new_distribution[n]
                 new_expected_value += n * new_distribution[n]
+                # End n-indexed for-loop (computation of new distribution)
+
+            # Normalise mass    
             if mass > 0.0:    
                 new_expected_value /=  mass 
                 for n in range(num_states):
                     new_distribution[n] /= mass
+
+            # Push back to process
             new_z_hat_t.distribution = new_distribution        
             new_z_hat_t.expected_value = new_expected_value
             new_z_hat_t.time = self.times.at(t + 1)
             self.process.push_back(new_z_hat_t)
+
+        # End t-indexed for-loop    
+
 
 cpdef np.ndarray[double, ndim=1] regularise_expected_values(
         np.ndarray[double, ndim=1] times, 
