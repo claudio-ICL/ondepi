@@ -192,12 +192,15 @@ cdef class Queue:
 
 
 
-def produce_df_detection(queue, double beta=1.0):
+def produce_df_detection(queue, double beta=1.0, price_level=None,
+        idx_precision=9,
+        event_times_only=True,
+        use_regularisation=False):
     # Expected value from filter 
     df_filter = queue.get_expected_process().reset_index()
     utils.check_nonempty_df(df_filter)
     cdef double dt = df_filter['time'].diff().min()
-    cdef long precision = <long>max(1, 10 ** (1 - <long>ceil(log10(dt))))
+    cdef long precision = <long>max(1, 10 ** max(idx_precision, (1 - <long>ceil(log10(dt)))))
     df_filter.insert(0, 'idx', np.array(
         np.floor(precision*df_filter['time'].values), dtype=np.int64))
 
@@ -208,6 +211,7 @@ def produce_df_detection(queue, double beta=1.0):
         np.floor(precision*df['time'].values), dtype=np.int64))
     df = df.merge(df_filter, on='idx', how='outer',
                   suffixes=(' sample', ' filter'), validate='1:1')
+    df.sort_values(by=['idx'], inplace=True)
 
     # Variances of the filter
     df_var = queue.get_variances_of_process().reset_index()
@@ -217,13 +221,23 @@ def produce_df_detection(queue, double beta=1.0):
     df_var.insert(1, 'std', np.sqrt(df_var['variance'].values))
     df = df.merge(df_var, on='idx', how='outer',
                   suffixes=('', ' variance'), validate='1:1')
-    df.dropna(inplace=True)
+    df.sort_values(by=['idx'], inplace=True)
+
+    # Restrict to event times or forward-fill
+    if event_times_only:
+        df.dropna(inplace=True)
+    else:
+        df.ffill(inplace=True)
 
     # Define predictor
     cdef np.ndarray[double, ndim=1] times = np.array(df['time sample'].values, dtype=np.float64)
     cdef np.ndarray[long, ndim=1] states = np.array(df['state'].values, dtype=np.int64)
     cdef np.ndarray[double, ndim=1] z_hat = np.array(df['expected val'].values, dtype=np.float64)
-    cdef np.ndarray[double, ndim=1] reg = regularise_expected_values(times, states, z_hat, beta)
+    cdef np.ndarray[double, ndim=1] reg = np.zeros_like(z_hat)
+    if use_regularisation:
+        reg = regularise_expected_values(times, states, z_hat, beta)
+    else:
+        reg = z_hat
     df.insert(df.shape[1], 'predictor', reg)
 
     # Define error
@@ -239,4 +253,7 @@ def produce_df_detection(queue, double beta=1.0):
     cols = ['idx', 'time sample', 'time filter',
             'state', 'expected val', 'variance', 'predictor', 'error', 'detector']
     df = df[cols]
+    if price_level is not None:
+        cols = [(price_level, col) for col in df.columns]
+        df.columns = pd.MultiIndex.from_tuples(cols)
     return df

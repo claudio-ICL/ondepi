@@ -34,7 +34,7 @@ def plot_reconstructed_volumes(df, ax=None, time_range=None, std_size=100, **kwa
 
 
 def plot_detection(df, ax=None, time_range=None, std_size=100, **kwargs):
-    df['time'] = df['time sample']
+    df['time'] = df['time filter']
     df, ax = __init__(df, ax, time_range)
     time = df['time'].values
     volumes = std_size * df['state'].values
@@ -52,8 +52,8 @@ def plot_detection(df, ax=None, time_range=None, std_size=100, **kwargs):
     return ax
 
 
-def plot_impact(df, ax=None, time_range=None, direction=1, std_size=100, **kwargs):
-    df['time'] = df['time sample']
+def plot_impact(df, ax=None, time_range=None, direction=1, std_size=100, title='Impact on level volumes', **kwargs):
+    df['time'] = df['time filter']
     df, ax = __init__(df, ax, time_range)
     time = df['time'].values
     impact = direction * std_size * df['detector'].values
@@ -63,8 +63,7 @@ def plot_impact(df, ax=None, time_range=None, direction=1, std_size=100, **kwarg
     ax.fill_between(time, impact, **kwargs)
     kwargs['alpha'] = max(1.0, 1.2 * kwargs.get('alpha', 1.0))
     ax.plot(time, impact, **kwargs)
-    ax.set_title(
-        f'Impact on level volumes')
+    ax.set_title(title)
     ax.set_xlabel('time in seconds')
     ax.set_ylabel('volume')
     ax.legend()
